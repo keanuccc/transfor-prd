@@ -5,7 +5,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { FileUpload } from '@/components/home/FileUpload'
 import { ModelSelector } from '@/components/home/ModelSelector'
+import { TemplateSelector } from '@/components/home/TemplateSelector'
 import { GenerateButton } from '@/components/home/GenerateButton'
+import { defaultTemplate } from '@/lib/templates'
 import { useLLMStore } from '@/stores/llmStore'
 import { useConversationStore } from '@/stores/conversationStore'
 import { useLLMStream } from '@/hooks/useLLMStream'
@@ -22,6 +24,7 @@ export function HomePage() {
   const [fileError, setFileError] = useState<string | null>(null)
   const [userInput, setUserInput] = useState('')
   const [selectedModelId, setSelectedModelId] = useState<string | undefined>()
+  const [selectedTemplateId, setSelectedTemplateId] = useState(defaultTemplate.id)
   const [loading, setLoading] = useState(false)
 
   const handleFileSelect = useCallback(async (f: File) => {
@@ -70,6 +73,7 @@ export function HomePage() {
         id: convId,
         title,
         llmConfigId: config.id,
+        templateId: selectedTemplateId,
         createdAt: Date.now(),
         updatedAt: Date.now(),
         sourceFileName: file?.name || '',
@@ -80,7 +84,7 @@ export function HomePage() {
       await setActiveConversation(convId)
       navigate(`/run/${convId}`)
 
-      startGeneration(convId, config.id, fileContent, userInput).catch((err) => {
+      startGeneration(convId, config.id, fileContent, userInput, selectedTemplateId).catch((err) => {
         toast.error(err instanceof Error ? err.message : '生成失败')
       })
     } catch (err) {
@@ -88,7 +92,7 @@ export function HomePage() {
     } finally {
       setLoading(false)
     }
-  }, [fileContent, file, userInput, selectedModelId, createConversation, setActiveConversation, navigate, getDefaultConfig, startGeneration])
+  }, [fileContent, file, userInput, selectedModelId, selectedTemplateId, createConversation, setActiveConversation, navigate, getDefaultConfig, startGeneration])
 
   return (
     <div className="flex h-full items-center justify-center overflow-auto">
@@ -129,6 +133,11 @@ export function HomePage() {
         <div className="space-y-1.5">
           <Label className="text-xs font-medium">选择模型</Label>
           <ModelSelector value={selectedModelId} onChange={setSelectedModelId} />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">选择模板</Label>
+          <TemplateSelector value={selectedTemplateId} onChange={setSelectedTemplateId} />
         </div>
 
         <GenerateButton

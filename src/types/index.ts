@@ -12,6 +12,7 @@ export interface Conversation {
   id: string
   title: string
   llmConfigId: string
+  templateId: string
   createdAt: number
   updatedAt: number
   sourceFileName: string

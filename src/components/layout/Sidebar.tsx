@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import {
   Plus,
   Search,
@@ -13,9 +13,9 @@ import {
   Moon,
   Monitor,
 } from 'lucide-react'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import {
   Tooltip,
@@ -130,6 +130,27 @@ export function Sidebar() {
     }
   }
 
+  // Filtered and sorted conversations
+  const filteredConversations = useMemo(
+    () =>
+      searchQuery
+        ? conversations.filter((conv) =>
+            conv.title.toLowerCase().includes(searchQuery.toLowerCase()),
+          )
+        : conversations,
+    [conversations, searchQuery],
+  )
+
+  const listRef = useRef<HTMLDivElement>(null)
+  const ITEM_HEIGHT = 36
+
+  const virtualizer = useVirtualizer({
+    count: filteredConversations.length,
+    getScrollElement: () => listRef.current,
+    estimateSize: () => ITEM_HEIGHT,
+    overscan: 5,
+  })
+
   return (
     <div
       className={cn(
@@ -174,95 +195,94 @@ export function Sidebar() {
       )}
 
       {/* Conversation list */}
-      <ScrollArea className="flex-1 overflow-hidden">
-        {!sidebarCollapsed && (
-          <div className="p-2">
-            {conversations.length === 0 ? (
-              <p className="py-4 text-center text-xs text-muted-foreground">暂无对话</p>
-            ) : (
-              <div className="space-y-0.5">
-                {conversations
-                  .filter((conv) =>
-                    searchQuery
-                      ? conv.title.toLowerCase().includes(searchQuery.toLowerCase())
-                      : true,
-                  )
-                  .map((conv) => (
-                  <div
-                    key={conv.id}
-                    className={cn(
-                      'group flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted',
-                      activeConversationId === conv.id && 'bg-muted font-medium',
-                    )}
-                    onClick={() => handleSelectConversation(conv.id)}
-                  >
-                    <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    {editingId === conv.id ? (
-                      <Input
-                        ref={editInputRef}
-                        value={editTitle}
-                        onChange={(e) => setEditTitle(e.target.value)}
-                        onBlur={() => handleFinishRename(conv.id)}
-                        onKeyDown={(e) => handleRenameKeyDown(e, conv.id)}
-                        className="h-5 flex-1 text-sm"
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    ) : (
-                      <span className="flex-1 truncate">{conv.title}</span>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      className="shrink-0 opacity-0 group-hover:opacity-100"
-                      onClick={(e) => handleStartRename(e, conv.id, conv.title)}
-                    >
-                      <Pencil className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      className="shrink-0 opacity-0 group-hover:opacity-100"
-                      onClick={(e) => handleDeleteConversation(e, conv.id)}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-        {sidebarCollapsed && conversations.length > 0 && (
-          <div className="flex flex-col items-center gap-1 p-2">
-            {conversations
-              .filter((conv) =>
-                searchQuery
-                  ? conv.title.toLowerCase().includes(searchQuery.toLowerCase())
-                  : true,
-              )
-              .slice(0, 5)
-              .map((conv) => (
-              <Tooltip key={conv.id}>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
+      {!sidebarCollapsed ? (
+        <div ref={listRef} className="flex-1 overflow-auto">
+          {filteredConversations.length === 0 ? (
+            <p className="py-4 text-center text-xs text-muted-foreground">暂无对话</p>
+          ) : (
+            <div
+              className="relative"
+              style={{ height: `${virtualizer.getTotalSize()}px` }}
+            >
+              <div className="p-2">
+                {virtualizer.getVirtualItems().map((virtualItem) => {
+                  const conv = filteredConversations[virtualItem.index]
+                  return (
+                    <div
+                      key={conv.id}
                       className={cn(
-                        activeConversationId === conv.id && 'bg-muted',
+                        'group absolute left-2 right-2 flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted',
+                        activeConversationId === conv.id && 'bg-muted font-medium',
                       )}
+                      style={{
+                        top: `${virtualItem.start}px`,
+                        height: `${virtualItem.size}px`,
+                      }}
                       onClick={() => handleSelectConversation(conv.id)}
-                    />
-                  }
-                >
-                  <MessageSquare className="h-4 w-4" />
-                </TooltipTrigger>
-                <TooltipContent side="right">{conv.title}</TooltipContent>
-              </Tooltip>
-            ))}
-          </div>
-        )}
-      </ScrollArea>
+                    >
+                      <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      {editingId === conv.id ? (
+                        <Input
+                          ref={editInputRef}
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          onBlur={() => handleFinishRename(conv.id)}
+                          onKeyDown={(e) => handleRenameKeyDown(e, conv.id)}
+                          className="h-5 flex-1 text-sm"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <span className="flex-1 truncate">{conv.title}</span>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="shrink-0 opacity-0 group-hover:opacity-100"
+                        onClick={(e) => handleStartRename(e, conv.id, conv.title)}
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="shrink-0 opacity-0 group-hover:opacity-100"
+                        onClick={(e) => handleDeleteConversation(e, conv.id)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-1 flex-col items-center gap-1 overflow-auto p-2">
+          {filteredConversations.slice(0, 10).map((conv) => (
+            <Tooltip key={conv.id}>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className={cn(activeConversationId === conv.id && 'bg-muted')}
+                    onClick={() => handleSelectConversation(conv.id)}
+                  />
+                }
+              >
+                <MessageSquare className="h-4 w-4" />
+              </TooltipTrigger>
+              <TooltipContent side="right">{conv.title}</TooltipContent>
+            </Tooltip>
+          ))}
+          {filteredConversations.length > 10 && (
+            <p className="text-[10px] text-muted-foreground">
+              +{filteredConversations.length - 10} 更多
+            </p>
+          )}
+        </div>
+      )}
 
       <Separator />
 

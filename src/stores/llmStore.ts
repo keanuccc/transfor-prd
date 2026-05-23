@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { LLMConfig } from '@/types'
+import { createEncryptedStorage } from '@/lib/cryptoStorage'
 
 interface LLMState {
   configs: LLMConfig[]
@@ -64,6 +65,6 @@ export const useLLMStore = create<LLMState>()(
         return configs.find((c) => c.id === id)
       },
     }),
-    { name: 'llm-store' },
+    { name: 'llm-store', storage: createEncryptedStorage() },
   ),
 )

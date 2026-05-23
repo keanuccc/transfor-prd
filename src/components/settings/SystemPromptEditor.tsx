@@ -37,7 +37,7 @@ export function SystemPromptEditor() {
         </Button>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">
-        自定义发送给大模型的系统提示词，影响生成内容的格式和风格。
+        自定义系统提示词。当使用自定义模板时，模板自带提示词优先；此处的提示词作为后备使用。
       </p>
 
       <Textarea

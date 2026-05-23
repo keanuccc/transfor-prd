@@ -6,6 +6,7 @@ import { useSettingsStore } from '@/stores/settingsStore'
 import { useLLMStore } from '@/stores/llmStore'
 import { db } from '@/db'
 import { MAX_AUTO_CONTINUE_RETRIES } from '@/lib/constants'
+import { getTemplateById } from '@/lib/templates'
 import type { LLMConfig, ChatMessage, Message } from '@/types'
 
 function buildUserPrompt(fileContent: string, userInput: string): string {
@@ -16,32 +17,28 @@ function buildUserPrompt(fileContent: string, userInput: string): string {
   return prompt
 }
 
-async function consumeStream(
-  config: LLMConfig,
-  chatMessages: ChatMessage[],
-  signal: AbortSignal,
+async function readStreamResult(
+  generator: AsyncGenerator<string, StreamResult>,
   onChunk: (accumulated: string, thinking: string | null) => Promise<void>,
 ): Promise<StreamResult> {
-  const generator = streamChatCompletion(config, chatMessages, signal)
   let accumulated = ''
   let thinkingContent: string | null = null
-  let result: StreamResult = { content: '', finishReason: null, thinkingContent: null }
 
   for await (const chunk of generator) {
     accumulated += chunk
     await onChunk(accumulated, thinkingContent)
   }
 
-  const returnResult = await generator.return(undefined as never)
-  if (returnResult.done && returnResult.value) {
-    result = returnResult.value
-    thinkingContent = result.thinkingContent
+  const { value } = await generator.next()
+  if (value) {
+    thinkingContent = value.thinkingContent
     if (thinkingContent) {
       await onChunk(accumulated, thinkingContent)
     }
+    return value
   }
 
-  return result
+  return { content: accumulated, finishReason: null, thinkingContent }
 }
 
 export function useLLMStream() {
@@ -72,10 +69,9 @@ export function useLLMStream() {
       for (let retry = 0; retry <= MAX_AUTO_CONTINUE_RETRIES; retry++) {
         let partContent = ''
 
-        const result = await consumeStream(
-          config,
-          currentMessages,
-          signal,
+        const generator = streamChatCompletion(config, currentMessages, signal)
+        const result = await readStreamResult(
+          generator,
           async (accumulated, thinking) => {
             accumulateRef.current = accumulated
             partContent = accumulated
@@ -122,8 +118,72 @@ export function useLLMStream() {
     [updateMessage, setStreamState],
   )
 
+  const executeStream = useCallback(
+    async (
+      conversationId: string,
+      config: LLMConfig,
+      userMessage: Message,
+      assistantMessage: Message,
+      chatMessages: ChatMessage[],
+      abortController: AbortController,
+    ) => {
+      await addMessage(userMessage)
+      await addMessage(assistantMessage)
+
+      setStreamState({
+        isStreaming: true,
+        currentPartIndex: 1,
+        totalParts: null,
+        abortController,
+      })
+
+      try {
+        await streamWithAutoContinue(
+          config,
+          chatMessages,
+          assistantMessage.id,
+          abortController.signal,
+          autoContinue,
+        )
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          await updateMessage(assistantMessage.id, { status: 'stopped' })
+        } else {
+          await updateMessage(assistantMessage.id, {
+            status: 'error',
+            errorMessage: err instanceof Error ? err.message : 'Unknown error',
+          })
+        }
+      } finally {
+        setStreamState({
+          isStreaming: false,
+          currentPartIndex: 0,
+          totalParts: null,
+          abortController: null,
+        })
+        await db.conversations.update(conversationId, { updatedAt: Date.now() })
+      }
+    },
+    [autoContinue, addMessage, updateMessage, setStreamState, streamWithAutoContinue],
+  )
+
+  function makeAssistantMsg(conversationId: string): Message {
+    return {
+      id: crypto.randomUUID(),
+      conversationId,
+      role: 'assistant',
+      content: '',
+      status: 'streaming',
+      partIndex: 1,
+      totalParts: null,
+      thinkingContent: null,
+      errorMessage: null,
+      createdAt: Date.now(),
+    }
+  }
+
   const startGeneration = useCallback(
-    async (conversationId: string, configId: string, fileContent: string, userInput: string) => {
+    async (conversationId: string, configId: string, fileContent: string, userInput: string, templateId: string) => {
       const config = getConfigById(configId)
       if (!config) throw new Error('未找到模型配置')
 
@@ -133,7 +193,9 @@ export function useLLMStream() {
       }
 
       accumulateRef.current = ''
-      const abortController = new AbortController()
+
+      const template = getTemplateById(templateId)
+      const prompt = template?.systemPrompt || systemPrompt
 
       const userContent = buildUserPrompt(fileContent, userInput)
       const userMessage: Message = {
@@ -148,62 +210,20 @@ export function useLLMStream() {
         errorMessage: null,
         createdAt: Date.now(),
       }
-      await addMessage(userMessage)
 
-      const assistantMessage: Message = {
-        id: crypto.randomUUID(),
+      await executeStream(
         conversationId,
-        role: 'assistant',
-        content: '',
-        status: 'streaming',
-        partIndex: 1,
-        totalParts: null,
-        thinkingContent: null,
-        errorMessage: null,
-        createdAt: Date.now(),
-      }
-      await addMessage(assistantMessage)
-
-      setStreamState({
-        isStreaming: true,
-        currentPartIndex: 1,
-        totalParts: null,
-        abortController,
-      })
-
-      const chatMessages: ChatMessage[] = [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userContent },
-      ]
-
-      try {
-        await streamWithAutoContinue(
-          config,
-          chatMessages,
-          assistantMessage.id,
-          abortController.signal,
-          autoContinue,
-        )
-      } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') {
-          await updateMessage(assistantMessage.id, { status: 'stopped' })
-        } else {
-          await updateMessage(assistantMessage.id, {
-            status: 'error',
-            errorMessage: err instanceof Error ? err.message : 'Unknown error',
-          })
-        }
-      } finally {
-        setStreamState({
-          isStreaming: false,
-          currentPartIndex: 0,
-          totalParts: null,
-          abortController: null,
-        })
-        await db.conversations.update(conversationId, { updatedAt: Date.now() })
-      }
+        config,
+        userMessage,
+        makeAssistantMsg(conversationId),
+        [
+          { role: 'system', content: prompt },
+          { role: 'user', content: userContent },
+        ],
+        new AbortController(),
+      )
     },
-    [systemPrompt, autoContinue, addMessage, updateMessage, setStreamState, getConfigById, streamWithAutoContinue],
+    [systemPrompt, getConfigById, executeStream],
   )
 
   const sendMessage = useCallback(
@@ -217,7 +237,10 @@ export function useLLMStream() {
       }
 
       accumulateRef.current = ''
-      const abortController = new AbortController()
+
+      const conv = useConversationStore.getState().conversations.find((c) => c.id === conversationId)
+      const template = conv ? getTemplateById(conv.templateId) : undefined
+      const prompt = template?.systemPrompt || systemPrompt
 
       const userMessage: Message = {
         id: crypto.randomUUID(),
@@ -231,31 +254,9 @@ export function useLLMStream() {
         errorMessage: null,
         createdAt: Date.now(),
       }
-      await addMessage(userMessage)
-
-      const assistantMessage: Message = {
-        id: crypto.randomUUID(),
-        conversationId,
-        role: 'assistant',
-        content: '',
-        status: 'streaming',
-        partIndex: 1,
-        totalParts: null,
-        thinkingContent: null,
-        errorMessage: null,
-        createdAt: Date.now(),
-      }
-      await addMessage(assistantMessage)
-
-      setStreamState({
-        isStreaming: true,
-        currentPartIndex: 1,
-        totalParts: null,
-        abortController,
-      })
 
       const chatMessages: ChatMessage[] = [
-        { role: 'system', content: systemPrompt },
+        { role: 'system', content: prompt },
       ]
       for (const msg of existingMessages) {
         if (msg.role === 'user' || msg.role === 'assistant') {
@@ -264,45 +265,30 @@ export function useLLMStream() {
       }
       chatMessages.push({ role: 'user', content: userInput })
 
-      try {
-        await streamWithAutoContinue(
-          config,
-          chatMessages,
-          assistantMessage.id,
-          abortController.signal,
-          autoContinue,
-        )
-      } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') {
-          await updateMessage(assistantMessage.id, { status: 'stopped' })
-        } else {
-          await updateMessage(assistantMessage.id, {
-            status: 'error',
-            errorMessage: err instanceof Error ? err.message : 'Unknown error',
-          })
-        }
-      } finally {
-        setStreamState({
-          isStreaming: false,
-          currentPartIndex: 0,
-          totalParts: null,
-          abortController: null,
-        })
-        await db.conversations.update(conversationId, { updatedAt: Date.now() })
-      }
+      await executeStream(
+        conversationId,
+        config,
+        userMessage,
+        makeAssistantMsg(conversationId),
+        chatMessages,
+        new AbortController(),
+      )
     },
-    [systemPrompt, autoContinue, addMessage, updateMessage, setStreamState, getConfigById, streamWithAutoContinue],
+    [systemPrompt, getConfigById, executeStream],
   )
 
   const continueGeneration = useCallback(async () => {
     if (!activeConversationId || streamState.abortController) return
 
-    const configId = useConversationStore.getState().conversations.find(
+    const conv = useConversationStore.getState().conversations.find(
       (c) => c.id === activeConversationId,
-    )?.llmConfigId
-    if (!configId) return
-    const config = getConfigById(configId)
+    )
+    if (!conv) return
+    const config = getConfigById(conv.llmConfigId)
     if (!config) return
+
+    const template = getTemplateById(conv.templateId)
+    const prompt = template?.systemPrompt || systemPrompt
 
     const lastAssistantMsg = [...messages].reverse().find((m) => m.role === 'assistant')
     if (!lastAssistantMsg) return
@@ -316,7 +302,7 @@ export function useLLMStream() {
     await updateMessage(lastAssistantMsg.id, { status: 'streaming' })
 
     const chatMessages: ChatMessage[] = [
-      { role: 'system', content: systemPrompt },
+      { role: 'system', content: prompt },
     ]
     for (const msg of messages) {
       if (msg.role === 'user' || msg.role === 'assistant') {
@@ -352,10 +338,115 @@ export function useLLMStream() {
     }
   }, [activeConversationId, messages, systemPrompt, autoContinue, streamState, updateMessage, setStreamState, getConfigById, streamWithAutoContinue])
 
+  const refine = useCallback(async () => {
+    if (!activeConversationId || streamState.abortController) return
+
+    const conv = useConversationStore.getState().conversations.find(
+      (c) => c.id === activeConversationId,
+    )
+    if (!conv) return
+    const config = getConfigById(conv.llmConfigId)
+    if (!config) return
+
+    const template = getTemplateById(conv.templateId)
+    const prompt = template?.systemPrompt || systemPrompt
+
+    const lastAssistantMsg = [...messages].reverse().find((m) => m.role === 'assistant')
+    if (!lastAssistantMsg || !lastAssistantMsg.content) return
+
+    accumulateRef.current = ''
+
+    const refinePrompt = `请对以下产品文档进行精修优化：补充遗漏的细节，修正不合理的描述，增强专业性和可读性。将优化后的完整文档输出。\n\n<document>\n${lastAssistantMsg.content}\n</document>`
+
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      conversationId: activeConversationId,
+      role: 'user',
+      content: refinePrompt,
+      status: 'completed',
+      partIndex: 0,
+      totalParts: null,
+      thinkingContent: null,
+      errorMessage: null,
+      createdAt: Date.now(),
+    }
+
+    const chatMessages: ChatMessage[] = [
+      { role: 'system', content: prompt },
+    ]
+    for (const msg of messages) {
+      if (msg.role === 'user' || msg.role === 'assistant') {
+        chatMessages.push({ role: msg.role, content: msg.content })
+      }
+    }
+    chatMessages.push({ role: 'user', content: refinePrompt })
+
+    await executeStream(
+      activeConversationId,
+      config,
+      userMessage,
+      makeAssistantMsg(activeConversationId),
+      chatMessages,
+      new AbortController(),
+    )
+  }, [activeConversationId, messages, systemPrompt, streamState, getConfigById, executeStream])
+
+  const startComparison = useCallback(async (comparisonConfigId: string) => {
+    if (!activeConversationId || streamState.abortController) return
+
+    const conv = useConversationStore.getState().conversations.find(
+      (c) => c.id === activeConversationId,
+    )
+    if (!conv) return
+    const config = getConfigById(comparisonConfigId)
+    if (!config) throw new Error('未找到对比模型配置')
+
+    const pingResult = await pingLLM(config)
+    if (!pingResult.success) {
+      throw new Error(`模型连通性检查失败: ${pingResult.error}`)
+    }
+
+    const template = getTemplateById(conv.templateId)
+    const prompt = template?.systemPrompt || systemPrompt
+
+    // Find the original user message to reuse as prompt
+    const firstUserMsg = messages.find((m) => m.role === 'user')
+    if (!firstUserMsg) throw new Error('未找到原始提示词')
+
+    accumulateRef.current = ''
+
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      conversationId: activeConversationId,
+      role: 'user',
+      content: `[模型对比: ${config.modelName}]\n${firstUserMsg.content}`,
+      status: 'completed',
+      partIndex: 0,
+      totalParts: null,
+      thinkingContent: null,
+      errorMessage: null,
+      createdAt: Date.now(),
+    }
+
+    await executeStream(
+      activeConversationId,
+      config,
+      userMessage,
+      makeAssistantMsg(activeConversationId),
+      [
+        { role: 'system', content: prompt },
+        { role: 'user', content: firstUserMsg.content },
+      ],
+      new AbortController(),
+    )
+  }, [activeConversationId, messages, systemPrompt, streamState, getConfigById, executeStream])
+
   return {
     startGeneration,
     sendMessage,
     continueGeneration,
+    refine,
+    startComparison,
     stopStreaming,
     streamState,
   }

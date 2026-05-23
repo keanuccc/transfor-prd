@@ -23,8 +23,8 @@ export function SecurityWarning() {
         <div className="flex-1">
           <p className="text-sm font-medium text-amber-800 dark:text-amber-200">安全提示</p>
           <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-            API Key 存储在浏览器 localStorage 中，存在被恶意脚本读取的风险。
-            请避免在公共或不受信任的设备上保存密钥。
+            API Key 使用 AES-256-GCM 加密后存储，加密密钥保存在浏览器 IndexedDB 中。
+            虽然已加密，仍建议避免在公共或不受信任的设备上保存密钥。
           </p>
           {configs.length > 0 && (
             <Button
