@@ -1,6 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { StyleSelector } from '@/components/home/StyleSelector'
+import { STYLE_OPTIONS } from '@/lib/stylePrompts'
 
 const QUICK_ACTIONS = [
   { label: '补充细节', prompt: '请补充更多实现细节，包括具体的字段定义、接口设计和错误处理逻辑。' },
@@ -17,14 +19,16 @@ interface ChatInputProps {
 
 export function ChatInput({ onSend, disabled }: ChatInputProps) {
   const [value, setValue] = useState('')
+  const [styleId, setStyleId] = useState('default')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const handleSend = useCallback(() => {
     const trimmed = value.trim()
     if (!trimmed) return
-    onSend(trimmed)
+    const stylePrompt = STYLE_OPTIONS.find((s) => s.id === styleId)?.prompt || ''
+    onSend(trimmed + stylePrompt)
     setValue('')
-  }, [value, onSend])
+  }, [value, styleId, onSend])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -53,7 +57,8 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
 
   return (
     <div className="border-t px-3 py-3">
-      <div className="mb-2.5 flex flex-wrap gap-1.5">
+      <StyleSelector value={styleId} onChange={setStyleId} />
+      <div className="mb-2.5 mt-2.5 flex flex-wrap gap-1.5">
         {QUICK_ACTIONS.map((action) => (
           <button
             key={action.label}

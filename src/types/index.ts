@@ -18,6 +18,8 @@ export interface Conversation {
   sourceFileName: string
   sourceFileContent: string
   userDescription: string
+  tags: string[]
+  starred: boolean
 }
 
 export type MessageRole = 'user' | 'assistant' | 'system'

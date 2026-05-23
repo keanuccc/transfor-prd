@@ -12,6 +12,9 @@ import {
   Sun,
   Moon,
   Monitor,
+  Star,
+  Tag,
+  X,
 } from 'lucide-react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Button } from '@/components/ui/button'
@@ -76,12 +79,15 @@ function ThemeToggle({ collapsed }: { collapsed: boolean }) {
 export function Sidebar() {
   const navigate = useNavigate()
   const { sidebarCollapsed, toggleSidebar } = useAppStore()
-  const { conversations, activeConversationId, setActiveConversation, deleteConversation, renameConversation } =
+  const { conversations, activeConversationId, setActiveConversation, deleteConversation, renameConversation, updateConversation } =
     useConversationStore()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editTitle, setEditTitle] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
+  const [taggingId, setTaggingId] = useState<string | null>(null)
+  const [tagInput, setTagInput] = useState('')
   const editInputRef = useRef<HTMLInputElement>(null)
+  const tagInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (editingId && editInputRef.current) {
@@ -130,16 +136,53 @@ export function Sidebar() {
     }
   }
 
-  // Filtered and sorted conversations
-  const filteredConversations = useMemo(
-    () =>
-      searchQuery
-        ? conversations.filter((conv) =>
-            conv.title.toLowerCase().includes(searchQuery.toLowerCase()),
-          )
-        : conversations,
-    [conversations, searchQuery],
-  )
+  const handleToggleStar = (e: React.MouseEvent, id: string, starred: boolean) => {
+    e.stopPropagation()
+    updateConversation(id, { starred: !starred })
+  }
+
+  const handleStartTagging = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
+    setTaggingId(id)
+    setTagInput('')
+    setTimeout(() => tagInputRef.current?.focus(), 50)
+  }
+
+  const handleAddTag = async (id: string, tags: string[]) => {
+    const name = tagInput.trim()
+    if (name && !tags.includes(name)) {
+      await updateConversation(id, { tags: [...tags, name] })
+    }
+    setTaggingId(null)
+    setTagInput('')
+  }
+
+  const handleRemoveTag = async (e: React.MouseEvent, id: string, tags: string[], tag: string) => {
+    e.stopPropagation()
+    await updateConversation(id, { tags: tags.filter((t) => t !== tag) })
+  }
+
+  const handleTagKeyDown = (e: React.KeyboardEvent, id: string, tags: string[]) => {
+    if (e.key === 'Enter') handleAddTag(id, tags)
+    if (e.key === 'Escape') {
+      setTaggingId(null)
+      setTagInput('')
+    }
+  }
+
+  // Filtered and sorted conversations — starred first, then by updatedAt desc
+  const filteredConversations = useMemo(() => {
+    let list = searchQuery
+      ? conversations.filter((conv) =>
+          conv.title.toLowerCase().includes(searchQuery.toLowerCase()),
+        )
+      : [...conversations]
+    list.sort((a, b) => {
+      if (a.starred !== b.starred) return a.starred ? -1 : 1
+      return b.updatedAt - a.updatedAt
+    })
+    return list
+  }, [conversations, searchQuery])
 
   const listRef = useRef<HTMLDivElement>(null)
   const ITEM_HEIGHT = 36
@@ -211,7 +254,7 @@ export function Sidebar() {
                     <div
                       key={conv.id}
                       className={cn(
-                        'group absolute left-2 right-2 flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted',
+                        'group absolute left-2 right-2 flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-sm hover:bg-muted',
                         activeConversationId === conv.id && 'bg-muted font-medium',
                       )}
                       style={{
@@ -220,7 +263,7 @@ export function Sidebar() {
                       }}
                       onClick={() => handleSelectConversation(conv.id)}
                     >
-                      <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <MessageSquare className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                       {editingId === conv.id ? (
                         <Input
                           ref={editInputRef}
@@ -232,8 +275,64 @@ export function Sidebar() {
                           onClick={(e) => e.stopPropagation()}
                         />
                       ) : (
-                        <span className="flex-1 truncate">{conv.title}</span>
+                        <>
+                          <span className="flex-1 truncate">{conv.title}</span>
+                          {conv.tags.length > 0 && (
+                            <div className="hidden shrink-0 items-center gap-0.5 group-hover:hidden">
+                              {conv.tags.slice(0, 2).map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="rounded-full bg-blue-50 px-1.5 py-0 text-[9px] text-blue-600 dark:bg-blue-950/40 dark:text-blue-300"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                              {conv.tags.length > 2 && (
+                                <span className="text-[9px] text-muted-foreground">+{conv.tags.length - 2}</span>
+                              )}
+                            </div>
+                          )}
+                        </>
                       )}
+                      {/* Star button */}
+                      <button
+                        className={cn(
+                          'shrink-0 rounded p-0.5 transition-all hover:bg-muted',
+                          conv.starred ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
+                        )}
+                        onClick={(e) => handleToggleStar(e, conv.id, conv.starred)}
+                        title={conv.starred ? '取消星标' : '星标'}
+                      >
+                        <Star
+                          className={cn(
+                            'h-3 w-3',
+                            conv.starred ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground',
+                          )}
+                        />
+                      </button>
+                      {/* Tag edit on hover */}
+                      <div className="shrink-0 opacity-0 group-hover:opacity-100">
+                        {taggingId === conv.id ? (
+                          <input
+                            ref={tagInputRef}
+                            value={tagInput}
+                            onChange={(e) => setTagInput(e.target.value)}
+                            onBlur={() => handleAddTag(conv.id, conv.tags)}
+                            onKeyDown={(e) => handleTagKeyDown(e, conv.id, conv.tags)}
+                            placeholder="标签..."
+                            className="h-5 w-12 rounded border border-border px-1 text-[10px] outline-none"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        ) : (
+                          <button
+                            className="flex items-center gap-0.5 rounded p-0.5 text-[9px] text-muted-foreground hover:bg-muted"
+                            onClick={(e) => handleStartTagging(e, conv.id)}
+                            title="添加标签"
+                          >
+                            <Tag className="h-2.5 w-2.5" />
+                          </button>
+                        )}
+                      </div>
                       <Button
                         variant="ghost"
                         size="icon-xs"

@@ -6,8 +6,10 @@ import { Label } from '@/components/ui/label'
 import { FileUpload } from '@/components/home/FileUpload'
 import { ModelSelector } from '@/components/home/ModelSelector'
 import { TemplateSelector } from '@/components/home/TemplateSelector'
+import { StyleSelector } from '@/components/home/StyleSelector'
 import { GenerateButton } from '@/components/home/GenerateButton'
 import { defaultTemplate } from '@/lib/templates'
+import { STYLE_OPTIONS } from '@/lib/stylePrompts'
 import { useLLMStore } from '@/stores/llmStore'
 import { useConversationStore } from '@/stores/conversationStore'
 import { useLLMStream } from '@/hooks/useLLMStream'
@@ -25,6 +27,7 @@ export function HomePage() {
   const [userInput, setUserInput] = useState('')
   const [selectedModelId, setSelectedModelId] = useState<string | undefined>()
   const [selectedTemplateId, setSelectedTemplateId] = useState(defaultTemplate.id)
+  const [styleId, setStyleId] = useState('default')
   const [loading, setLoading] = useState(false)
 
   const handleFileSelect = useCallback(async (f: File) => {
@@ -69,6 +72,9 @@ export function HomePage() {
       const convId = crypto.randomUUID()
       const title = file?.name?.replace(/\.(md|markdown)$/i, '') || '新对话'
 
+      const stylePrompt = STYLE_OPTIONS.find((s) => s.id === styleId)?.prompt || ''
+      const fullDescription = userInput + stylePrompt
+
       await createConversation({
         id: convId,
         title,
@@ -78,7 +84,9 @@ export function HomePage() {
         updatedAt: Date.now(),
         sourceFileName: file?.name || '',
         sourceFileContent: fileContent,
-        userDescription: userInput,
+        userDescription: fullDescription,
+        tags: [],
+        starred: false,
       })
 
       await setActiveConversation(convId)
@@ -92,7 +100,7 @@ export function HomePage() {
     } finally {
       setLoading(false)
     }
-  }, [fileContent, file, userInput, selectedModelId, selectedTemplateId, createConversation, setActiveConversation, navigate, getDefaultConfig, startGeneration])
+  }, [fileContent, file, userInput, styleId, selectedModelId, selectedTemplateId, createConversation, setActiveConversation, navigate, getDefaultConfig, startGeneration])
 
   return (
     <div className="flex h-full items-center justify-center overflow-auto">
@@ -117,6 +125,11 @@ export function HomePage() {
             onFileSelect={handleFileSelect}
             onClear={handleClearFile}
           />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">写作风格</Label>
+          <StyleSelector value={styleId} onChange={setStyleId} />
         </div>
 
         <div className="space-y-1.5">

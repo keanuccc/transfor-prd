@@ -23,11 +23,35 @@ async function readStreamResult(
 ): Promise<StreamResult> {
   let accumulated = ''
   let thinkingContent: string | null = null
+  let pendingRaf = false
+  let lastFlush = 0
+
+  function flush() {
+    pendingRaf = false
+    lastFlush = Date.now()
+    onChunk(accumulated, thinkingContent)
+  }
 
   for await (const chunk of generator) {
     accumulated += chunk
-    await onChunk(accumulated, thinkingContent)
+    // Throttle: batch chunks within the same animation frame (max ~16ms)
+    // Fall back to timer if rAF is not available
+    if (typeof requestAnimationFrame !== 'undefined') {
+      if (!pendingRaf) {
+        pendingRaf = true
+        requestAnimationFrame(flush)
+      }
+    } else {
+      // Fallback: throttle to ~80ms intervals
+      if (Date.now() - lastFlush > 80) {
+        await onChunk(accumulated, thinkingContent)
+        lastFlush = Date.now()
+      }
+    }
   }
+
+  // Final flush to ensure all content is rendered
+  await onChunk(accumulated, thinkingContent)
 
   const { value } = await generator.next()
   if (value) {
@@ -391,6 +415,76 @@ export function useLLMStream() {
     )
   }, [activeConversationId, messages, systemPrompt, streamState, getConfigById, executeStream])
 
+  const review = useCallback(async () => {
+    if (!activeConversationId || streamState.abortController) return
+
+    const conv = useConversationStore.getState().conversations.find(
+      (c) => c.id === activeConversationId,
+    )
+    if (!conv) return
+    const config = getConfigById(conv.llmConfigId)
+    if (!config) return
+
+    const template = getTemplateById(conv.templateId)
+    const prompt = template?.systemPrompt || systemPrompt
+
+    const lastAssistantMsg = [...messages].reverse().find((m) => m.role === 'assistant')
+    if (!lastAssistantMsg || !lastAssistantMsg.content) return
+
+    accumulateRef.current = ''
+
+    const reviewPrompt = `请作为资深产品评审专家，对以下文档进行专业审阅。
+
+从以下 4 个维度打分（1-10 分）并给出详细意见：
+1. **完整性** — 是否覆盖了所有必要的功能模块和场景
+2. **可执行性** — 描述是否足够具体，能够直接指导开发
+3. **清晰度** — 逻辑是否清晰，表达是否准确无歧义
+4. **技术可行性** — 技术方案是否合理
+
+请同时指出：
+- 逻辑漏洞或不一致之处
+- 缺失的边界条件（corner case）
+- 建议补充的内容
+
+请以清晰的评审报告格式输出，包含总分、各维度评分、详细意见和改进建议。
+
+<document>
+${lastAssistantMsg.content}
+</document>`
+
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      conversationId: activeConversationId,
+      role: 'user',
+      content: reviewPrompt,
+      status: 'completed',
+      partIndex: 0,
+      totalParts: null,
+      thinkingContent: null,
+      errorMessage: null,
+      createdAt: Date.now(),
+    }
+
+    const chatMessages: ChatMessage[] = [
+      { role: 'system', content: prompt },
+    ]
+    for (const msg of messages) {
+      if (msg.role === 'user' || msg.role === 'assistant') {
+        chatMessages.push({ role: msg.role, content: msg.content })
+      }
+    }
+    chatMessages.push({ role: 'user', content: reviewPrompt })
+
+    await executeStream(
+      activeConversationId,
+      config,
+      userMessage,
+      makeAssistantMsg(activeConversationId),
+      chatMessages,
+      new AbortController(),
+    )
+  }, [activeConversationId, messages, systemPrompt, streamState, getConfigById, executeStream])
+
   const startComparison = useCallback(async (comparisonConfigId: string) => {
     if (!activeConversationId || streamState.abortController) return
 
@@ -446,6 +540,7 @@ export function useLLMStream() {
     sendMessage,
     continueGeneration,
     refine,
+    review,
     startComparison,
     stopStreaming,
     streamState,

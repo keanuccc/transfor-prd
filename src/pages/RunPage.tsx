@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useRef, useState, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { AlertCircle, FileText, GitCompare, Loader2, X } from 'lucide-react'
+import { AlertCircle, Columns2, FileText, GitCompare, Loader2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
@@ -20,6 +20,9 @@ import { ContinueButton } from '@/components/run/ContinueButton'
 import { MarkdownPreview } from '@/components/run/MarkdownPreview'
 import { EditorToolbar } from '@/components/run/EditorToolbar'
 import { ProgressIndicator } from '@/components/run/ProgressIndicator'
+import { SkeletonPrd } from '@/components/run/SkeletonPrd'
+import { TableOfContents } from '@/components/run/TableOfContents'
+import { DiffView } from '@/components/run/DiffView'
 import { BackToTop } from '@/components/run/BackToTop'
 import { useConversationStore } from '@/stores/conversationStore'
 import { useLLMStream } from '@/hooks/useLLMStream'
@@ -33,7 +36,7 @@ export function RunPage() {
   const { id } = useParams<{ id: string }>()
   const { setActiveConversation, messages, activeConversationId, conversations, updateMessage } =
     useConversationStore()
-  const { streamState, stopStreaming, continueGeneration, startGeneration, sendMessage, refine, startComparison } =
+  const { streamState, stopStreaming, continueGeneration, startGeneration, sendMessage, refine, review, startComparison } =
     useLLMStream()
   const { setSidebarCollapsed } = useAppStore()
   const { getConfigById, configs } = useLLMStore()
@@ -43,6 +46,7 @@ export function RunPage() {
   const [compareModelId, setCompareModelId] = useState<string>('')
   const [compareLoading, setCompareLoading] = useState(false)
   const [showCompare, setShowCompare] = useState(false)
+  const [compareDiffMode, setCompareDiffMode] = useState(false)
   const prdViewportRef = useRef<HTMLDivElement>(null)
   const enableCompletionSound = useSettingsStore((s) => s.enableCompletionSound)
 
@@ -78,6 +82,7 @@ export function RunPage() {
   }, [id])
 
   const prevIsStreaming = useRef(false)
+  const assistantMessage = messages.find((m) => m.role === 'assistant')
   useEffect(() => {
     if (prevIsStreaming.current && !streamState.isStreaming && assistantMessage?.content && enableCompletionSound) {
       playCompletionSound()
@@ -100,7 +105,6 @@ export function RunPage() {
     [activeConversationId, conversation, modelConfig, messages, streamState.isStreaming, sendMessage],
   )
 
-  const assistantMessage = messages.find((m) => m.role === 'assistant')
   const needsManualContinue =
     assistantMessage?.status === 'stopped' &&
     streamState.currentPartIndex > 0 &&
@@ -115,6 +119,16 @@ export function RunPage() {
       toast.error(err instanceof Error ? err.message : '精修失败')
     })
   }, [refine, streamState.isStreaming])
+
+  const handleReview = useCallback(() => {
+    if (streamState.isStreaming) {
+      toast.error('请等待当前生成完成后再执行审阅')
+      return
+    }
+    review().catch((err) => {
+      toast.error(err instanceof Error ? err.message : '审阅失败')
+    })
+  }, [review, streamState.isStreaming])
 
   const handleCompare = useCallback(async () => {
     if (streamState.isStreaming) {
@@ -256,6 +270,7 @@ export function RunPage() {
           isStreaming={streamState.isStreaming}
           onToggleEditMode={handleToggleEditMode}
           onRefine={handleRefine}
+          onReview={handleReview}
         />
 
         {/* Comparison bar */}
@@ -285,73 +300,99 @@ export function RunPage() {
               开始对比
             </Button>
             {showCompare && (
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                className="ml-auto"
-                onClick={() => setShowCompare(false)}
-              >
-                <X className="h-3 w-3" />
-              </Button>
+              <div className="ml-auto flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  title={compareDiffMode ? '并排对比' : '差异对比'}
+                  onClick={() => setCompareDiffMode((p) => !p)}
+                >
+                  <Columns2 className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={() => { setShowCompare(false); setCompareDiffMode(false) }}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
             )}
           </div>
         )}
 
-        <ScrollArea className="min-h-0 flex-1" viewportRef={prdViewportRef}>
-          {currentContent ? (
-            showCompare && comparisonAssistantMsg ? (
-              <div className="grid grid-cols-2 divide-x h-full">
-                {/* Original */}
-                <div className="px-6 py-4 overflow-auto">
-                  <div className="mb-2 text-xs font-medium text-muted-foreground">
-                    主模型
+        <div className="flex min-h-0 flex-1">
+          <ScrollArea className="min-h-0 flex-1" viewportRef={prdViewportRef}>
+            {currentContent ? (
+              showCompare && comparisonAssistantMsg ? (
+                compareDiffMode ? (
+                  <div className="px-4 py-4">
+                    <DiffView
+                      original={currentContent}
+                      updated={comparisonAssistantMsg.content || ''}
+                    />
                   </div>
+                ) : (
+                  <div className="grid grid-cols-2 divide-x h-full">
+                    {/* Original */}
+                    <div className="px-6 py-4 overflow-auto">
+                      <div className="mb-2 text-xs font-medium text-muted-foreground">
+                        主模型
+                      </div>
+                      {editMode ? (
+                        <Textarea
+                          value={editContent}
+                          onChange={(e) => setEditContent(e.target.value)}
+                          className="min-h-[40vh] font-mono text-sm leading-relaxed resize-none"
+                        />
+                      ) : (
+                        <MarkdownPreview content={currentContent} />
+                      )}
+                    </div>
+                    {/* Comparison */}
+                    <div className="px-6 py-4 overflow-auto">
+                      <div className="mb-2 text-xs font-medium text-muted-foreground">
+                        对比模型
+                      </div>
+                      {comparisonAssistantMsg.status === 'streaming' ? (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          正在生成...
+                        </div>
+                      ) : null}
+                      <MarkdownPreview content={comparisonAssistantMsg.content || ' '} />
+                    </div>
+                  </div>
+                )
+              ) : (
+                <div className="px-8 py-6">
                   {editMode ? (
                     <Textarea
                       value={editContent}
                       onChange={(e) => setEditContent(e.target.value)}
-                      className="min-h-[40vh] font-mono text-sm leading-relaxed resize-none"
+                      className="min-h-[60vh] font-mono text-sm leading-relaxed resize-none"
                     />
                   ) : (
                     <MarkdownPreview content={currentContent} />
                   )}
                 </div>
-                {/* Comparison */}
-                <div className="px-6 py-4 overflow-auto">
-                  <div className="mb-2 text-xs font-medium text-muted-foreground">
-                    对比模型
-                  </div>
-                  {comparisonAssistantMsg.status === 'streaming' ? (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      正在生成...
-                    </div>
-                  ) : null}
-                  <MarkdownPreview content={comparisonAssistantMsg.content || ' '} />
-                </div>
-              </div>
+              )
+            ) : streamState.isStreaming ? (
+              <SkeletonPrd />
             ) : (
-              <div className="px-8 py-6">
-                {editMode ? (
-                  <Textarea
-                    value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
-                    className="min-h-[60vh] font-mono text-sm leading-relaxed resize-none"
-                  />
-                ) : (
-                  <MarkdownPreview content={currentContent} />
-                )}
+              <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
+                <FileText className="h-10 w-10 opacity-30" />
+                <p className="text-sm">等待生成</p>
               </div>
-            )
-          ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
-              <FileText className="h-10 w-10 opacity-30" />
-              <p className="text-sm">
-                {streamState.isStreaming ? '正在生成...' : '等待生成'}
-              </p>
+            )}
+          </ScrollArea>
+
+          {currentContent && !editMode && !showCompare && (
+            <div className="w-44 shrink-0 overflow-auto border-l px-3 py-4">
+              <TableOfContents content={currentContent} />
             </div>
           )}
-        </ScrollArea>
+        </div>
 
         <BackToTop container={prdViewportRef.current} />
       </div>

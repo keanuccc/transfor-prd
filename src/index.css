@@ -29,6 +29,11 @@
   --radius-xl: 0.75rem;
 }
 
+@keyframes indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+
 @layer base {
   * {
     @apply border-border;

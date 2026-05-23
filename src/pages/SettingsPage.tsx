@@ -2,6 +2,7 @@ import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
 import { LLMConfigList } from '@/components/settings/LLMConfigList'
 import { SystemPromptEditor } from '@/components/settings/SystemPromptEditor'
+import { CustomTemplateList } from '@/components/settings/CustomTemplateList'
 import { SecurityWarning } from '@/components/settings/SecurityWarning'
 import { useSettingsStore } from '@/stores/settingsStore'
 
@@ -19,6 +20,10 @@ export function SettingsPage() {
         <SecurityWarning />
 
         <LLMConfigList />
+
+        <Separator />
+
+        <CustomTemplateList />
 
         <Separator />
 
