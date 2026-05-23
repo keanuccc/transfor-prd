@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
 import {
   Plus,
+  Search,
   Settings,
   PanelLeftClose,
   PanelLeft,
@@ -79,6 +80,7 @@ export function Sidebar() {
     useConversationStore()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editTitle, setEditTitle] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
   const editInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -158,6 +160,19 @@ export function Sidebar() {
 
       <Separator />
 
+      {/* Search */}
+      {!sidebarCollapsed && conversations.length > 0 && (
+        <div className="relative mx-2 mt-2">
+          <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="搜索对话..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="h-7 pl-7 text-xs"
+          />
+        </div>
+      )}
+
       {/* Conversation list */}
       <ScrollArea className="flex-1 overflow-hidden">
         {!sidebarCollapsed && (
@@ -166,7 +181,13 @@ export function Sidebar() {
               <p className="py-4 text-center text-xs text-muted-foreground">暂无对话</p>
             ) : (
               <div className="space-y-0.5">
-                {conversations.map((conv) => (
+                {conversations
+                  .filter((conv) =>
+                    searchQuery
+                      ? conv.title.toLowerCase().includes(searchQuery.toLowerCase())
+                      : true,
+                  )
+                  .map((conv) => (
                   <div
                     key={conv.id}
                     className={cn(
@@ -213,7 +234,14 @@ export function Sidebar() {
         )}
         {sidebarCollapsed && conversations.length > 0 && (
           <div className="flex flex-col items-center gap-1 p-2">
-            {conversations.slice(0, 5).map((conv) => (
+            {conversations
+              .filter((conv) =>
+                searchQuery
+                  ? conv.title.toLowerCase().includes(searchQuery.toLowerCase())
+                  : true,
+              )
+              .slice(0, 5)
+              .map((conv) => (
               <Tooltip key={conv.id}>
                 <TooltipTrigger
                   render={
