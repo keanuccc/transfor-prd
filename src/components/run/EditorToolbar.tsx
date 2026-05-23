@@ -1,13 +1,15 @@
-import { Copy, Download } from 'lucide-react'
+import { Copy, Download, Eye, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 
 interface EditorToolbarProps {
   content: string
   fileName?: string
+  editMode: boolean
+  onToggleEditMode: () => void
 }
 
-export function EditorToolbar({ content, fileName }: EditorToolbarProps) {
+export function EditorToolbar({ content, fileName, editMode, onToggleEditMode }: EditorToolbarProps) {
   const handleCopy = async () => {
     if (!content) return
     try {
@@ -32,6 +34,20 @@ export function EditorToolbar({ content, fileName }: EditorToolbarProps) {
 
   return (
     <div className="flex items-center gap-1 border-b px-3 py-1">
+      <Button variant="ghost" size="xs" className="gap-1" onClick={onToggleEditMode} disabled={!content}>
+        {editMode ? (
+          <>
+            <Eye className="h-3 w-3" />
+            预览
+          </>
+        ) : (
+          <>
+            <Pencil className="h-3 w-3" />
+            编辑
+          </>
+        )}
+      </Button>
+      <div className="flex-1" />
       <Button variant="ghost" size="xs" className="gap-1" onClick={handleCopy} disabled={!content}>
         <Copy className="h-3 w-3" />
         复制

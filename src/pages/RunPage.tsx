@@ -1,9 +1,10 @@
-import { useEffect, useCallback, useRef } from 'react'
+import { useEffect, useCallback, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { AlertCircle, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Textarea } from '@/components/ui/textarea'
 import { MessageBubble } from '@/components/run/MessageBubble'
 import { ThinkingPanel } from '@/components/run/ThinkingPanel'
 import { ChatInput } from '@/components/run/ChatInput'
@@ -19,12 +20,14 @@ import { useLLMStore } from '@/stores/llmStore'
 
 export function RunPage() {
   const { id } = useParams<{ id: string }>()
-  const { setActiveConversation, messages, activeConversationId, conversations } =
+  const { setActiveConversation, messages, activeConversationId, conversations, updateMessage } =
     useConversationStore()
   const { streamState, stopStreaming, continueGeneration, startGeneration, sendMessage } = useLLMStream()
   const { setSidebarCollapsed } = useAppStore()
   const { getConfigById } = useLLMStore()
   const startedRef = useRef(false)
+  const [editMode, setEditMode] = useState(false)
+  const [editContent, setEditContent] = useState('')
 
   useEffect(() => {
     setSidebarCollapsed(true)
@@ -76,6 +79,19 @@ export function RunPage() {
     assistantMessage?.status === 'stopped' &&
     streamState.currentPartIndex > 0 &&
     !streamState.isStreaming
+
+  const handleToggleEditMode = useCallback(() => {
+    setEditMode((prev) => {
+      if (!prev && assistantMessage) {
+        setEditContent(assistantMessage.content)
+      } else if (prev && assistantMessage) {
+        updateMessage(assistantMessage.id, { content: editContent })
+      }
+      return !prev
+    })
+  }, [assistantMessage, editContent, updateMessage])
+
+  const currentContent = editMode ? editContent : (assistantMessage?.content || '')
 
   if (conversation && !modelConfig) {
     return (
@@ -142,13 +158,23 @@ export function RunPage() {
       {/* Right: Editor/Preview panel */}
       <div className="flex min-w-0 flex-1 flex-col">
         <EditorToolbar
-          content={assistantMessage?.content || ''}
+          content={currentContent}
           fileName={conversation?.title ? `${conversation.title}.md` : undefined}
+          editMode={editMode}
+          onToggleEditMode={handleToggleEditMode}
         />
         <ScrollArea className="flex-1">
-          {assistantMessage?.content ? (
+          {currentContent ? (
             <div className="px-8 py-6">
-              <MarkdownPreview content={assistantMessage.content} />
+              {editMode ? (
+                <Textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  className="min-h-[60vh] font-mono text-sm leading-relaxed resize-none"
+                />
+              ) : (
+                <MarkdownPreview content={currentContent} />
+              )}
             </div>
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
