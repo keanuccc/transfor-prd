@@ -1,73 +1,54 @@
-# React + TypeScript + Vite
+# Markdown 思维导图 → PRD 转换器
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+将产品功能结构思维导图（Markdown 格式）自动转换为详细的产品功能描述文档（PRD），基于大语言模型生成。
 
-Currently, two official plugins are available:
+## 功能
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **智能转换**：上传 Markdown 思维导图，LLM 自动展开为结构化 PRD
+- **多模型支持**：配置任意 OpenAI 兼容 API 的模型
+- **流式生成**：实时查看生成进度，支持自动续写长文档
+- **对话交互**：生成后可持续追问、补充、修改
+- **编辑导出**：预览/编辑 Markdown 源码，一键复制或下载 .md 文件
+- **历史管理**：对话历史持久化存储，支持搜索、重命名
 
-## React Compiler
+## 技术栈
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+| 层 | 技术 |
+|---|---|
+| 框架 | React 19 + TypeScript |
+| 构建 | Vite 8 (Rolldown) |
+| 样式 | Tailwind CSS 4 |
+| 状态管理 | Zustand |
+| 路由 | React Router v7 |
+| 本地存储 | Dexie.js (IndexedDB) |
+| UI 组件 | Base UI (Radix) + 自定义组件 |
+| Markdown | react-markdown + remark-gfm |
 
-## Expanding the ESLint configuration
+## 项目结构
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+src/
+├── components/
+│   ├── home/           # 首页：文件上传、模型选择、生成按钮
+│   ├── run/            # 运行页：消息气泡、思维面板、编辑器工具栏
+│   ├── layout/         # 布局：侧边栏、主题切换
+│   ├── settings/       # 设置：模型配置、系统提示词
+│   └── ui/             # 基础 UI 组件
+├── hooks/              # useLLMStream, useFileUpload
+├── services/           # LLM 流式调用, 连通性检查
+├── stores/             # Zustand stores (app, conversation, llm, settings)
+├── db/                 # IndexedDB schema
+├── lib/                # 工具函数、常量
+├── pages/              # 页面组件
+├── router/             # 路由配置
+└── types/              # TypeScript 类型定义
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 开发
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev      # 启动开发服务器
+npm run build    # 构建生产版本
+npm run lint     # ESLint 检查
 ```
