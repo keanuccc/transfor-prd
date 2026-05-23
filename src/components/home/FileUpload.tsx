@@ -1,6 +1,7 @@
-import { useRef, useCallback } from 'react'
+import { useRef, useCallback, useState } from 'react'
 import { Upload, X, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 const MAX_FILE_SIZE_MB = 5
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
@@ -15,11 +16,11 @@ interface FileUploadProps {
 
 export function FileUpload({ file, fileContent, error, onFileSelect, onClear }: FileUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const [isDragging, setIsDragging] = useState(false)
 
   const handleFile = useCallback(
     (f: File) => {
       if (f.size > MAX_FILE_SIZE_BYTES) {
-        onFileSelect(new File([], ''))
         return
       }
       onFileSelect(f)
@@ -27,18 +28,35 @@ export function FileUpload({ file, fileContent, error, onFileSelect, onClear }: 
     [onFileSelect],
   )
 
+  const onDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(true)
+  }, [])
+
+  const onDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }, [])
+
+  const onDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.currentTarget === e.target) {
+      setIsDragging(false)
+    }
+  }, [])
+
   const onDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault()
+      e.stopPropagation()
+      setIsDragging(false)
       const f = e.dataTransfer.files[0]
       if (f) handleFile(f)
     },
     [handleFile],
   )
-
-  const onDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-  }, [])
 
   const onInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -70,12 +88,19 @@ export function FileUpload({ file, fileContent, error, onFileSelect, onClear }: 
   return (
     <div>
       <div
-        className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/25 px-6 py-8 transition-colors hover:border-muted-foreground/40 hover:bg-muted/10"
-        onDrop={onDrop}
+        className={cn(
+          'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-6 py-8 transition-colors',
+          isDragging
+            ? 'border-primary bg-primary/5'
+            : 'border-muted-foreground/25 hover:border-muted-foreground/40 hover:bg-muted/10',
+        )}
+        onDragEnter={onDragEnter}
         onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
         onClick={() => inputRef.current?.click()}
       >
-        <Upload className="h-8 w-8 text-muted-foreground/50" />
+        <Upload className={cn('h-8 w-8', isDragging ? 'text-primary' : 'text-muted-foreground/50')} />
         <p className="text-sm text-muted-foreground">
           拖拽 Markdown 文件到此处，或点击上传
         </p>

@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { useState, useRef, useEffect } from 'react'
 import {
   Plus,
   Settings,
@@ -6,11 +7,13 @@ import {
   PanelLeft,
   MessageSquare,
   Trash2,
+  Pencil,
   Sun,
   Moon,
   Monitor,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import {
@@ -72,14 +75,24 @@ function ThemeToggle({ collapsed }: { collapsed: boolean }) {
 export function Sidebar() {
   const navigate = useNavigate()
   const { sidebarCollapsed, toggleSidebar } = useAppStore()
-  const { conversations, activeConversationId, setActiveConversation, deleteConversation } =
+  const { conversations, activeConversationId, setActiveConversation, deleteConversation, renameConversation } =
     useConversationStore()
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editTitle, setEditTitle] = useState('')
+  const editInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (editingId && editInputRef.current) {
+      editInputRef.current.select()
+    }
+  }, [editingId])
 
   const handleNewConversation = () => {
     navigate('/')
   }
 
   const handleSelectConversation = async (id: string) => {
+    if (editingId) return
     await setActiveConversation(id)
     navigate(`/run/${id}`)
   }
@@ -89,6 +102,29 @@ export function Sidebar() {
     await deleteConversation(id)
     if (activeConversationId === id) {
       navigate('/')
+    }
+  }
+
+  const handleStartRename = (e: React.MouseEvent, id: string, title: string) => {
+    e.stopPropagation()
+    setEditingId(id)
+    setEditTitle(title)
+  }
+
+  const handleFinishRename = async (id: string) => {
+    const title = editTitle.trim()
+    if (title) {
+      await renameConversation(id, title)
+    }
+    setEditingId(null)
+    setEditTitle('')
+  }
+
+  const handleRenameKeyDown = (e: React.KeyboardEvent, id: string) => {
+    if (e.key === 'Enter') handleFinishRename(id)
+    if (e.key === 'Escape') {
+      setEditingId(null)
+      setEditTitle('')
     }
   }
 
@@ -140,7 +176,27 @@ export function Sidebar() {
                     onClick={() => handleSelectConversation(conv.id)}
                   >
                     <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    <span className="flex-1 truncate">{conv.title}</span>
+                    {editingId === conv.id ? (
+                      <Input
+                        ref={editInputRef}
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        onBlur={() => handleFinishRename(conv.id)}
+                        onKeyDown={(e) => handleRenameKeyDown(e, conv.id)}
+                        className="h-5 flex-1 text-sm"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      <span className="flex-1 truncate">{conv.title}</span>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      className="shrink-0 opacity-0 group-hover:opacity-100"
+                      onClick={(e) => handleStartRename(e, conv.id, conv.title)}
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon-xs"

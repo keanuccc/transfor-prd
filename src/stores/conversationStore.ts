@@ -10,6 +10,7 @@ interface ConversationState {
   loadConversations: () => Promise<void>
   createConversation: (conv: Conversation) => Promise<void>
   deleteConversation: (id: string) => Promise<void>
+  renameConversation: (id: string, title: string) => Promise<void>
   setActiveConversation: (id: string | null) => Promise<void>
   loadMessages: (conversationId: string) => Promise<void>
   addMessage: (message: Message) => Promise<void>
@@ -50,6 +51,15 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
       conversations: s.conversations.filter((c) => c.id !== id),
       activeConversationId: s.activeConversationId === id ? null : s.activeConversationId,
       messages: s.activeConversationId === id ? [] : s.messages,
+    }))
+  },
+
+  renameConversation: async (id, title) => {
+    await db.conversations.update(id, { title, updatedAt: Date.now() })
+    set((s) => ({
+      conversations: s.conversations.map((c) =>
+        c.id === id ? { ...c, title, updatedAt: Date.now() } : c,
+      ),
     }))
   },
 
