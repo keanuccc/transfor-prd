@@ -2,7 +2,6 @@ import { useEffect, useCallback, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { AlertCircle, FileText } from 'lucide-react'
-import { streamChatCompletion } from '@/services/llm'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { MessageBubble } from '@/components/run/MessageBubble'
@@ -17,20 +16,15 @@ import { useConversationStore } from '@/stores/conversationStore'
 import { useLLMStream } from '@/hooks/useLLMStream'
 import { useAppStore } from '@/stores/appStore'
 import { useLLMStore } from '@/stores/llmStore'
-import { useSettingsStore } from '@/stores/settingsStore'
-import { db } from '@/db'
-import type { Message, ChatMessage } from '@/types'
 
 export function RunPage() {
   const { id } = useParams<{ id: string }>()
-  const { setActiveConversation, messages, activeConversationId, conversations, addMessage } =
+  const { setActiveConversation, messages, activeConversationId, conversations } =
     useConversationStore()
-  const { streamState, stopStreaming, continueGeneration, startGeneration } = useLLMStream()
+  const { streamState, stopStreaming, continueGeneration, startGeneration, sendMessage } = useLLMStream()
   const { setSidebarCollapsed } = useAppStore()
   const { getConfigById } = useLLMStore()
-  const { systemPrompt } = useSettingsStore()
   const startedRef = useRef(false)
-  const streamingRef = useRef(false)
 
   useEffect(() => {
     setSidebarCollapsed(true)
@@ -65,94 +59,16 @@ export function RunPage() {
   const handleSendMessage = useCallback(
     async (input: string) => {
       if (!activeConversationId || !conversation || !modelConfig) return
-      // Guard against concurrent streams
-      if (streamingRef.current || useConversationStore.getState().streamState.isStreaming) {
+      if (streamState.isStreaming) {
         toast.error('请等待当前生成完成后再发送消息')
         return
       }
 
-      streamingRef.current = true
-
-      const userMessage: Message = {
-        id: crypto.randomUUID(),
-        conversationId: activeConversationId,
-        role: 'user',
-        content: input,
-        status: 'completed',
-        partIndex: 0,
-        totalParts: null,
-        thinkingContent: null,
-        errorMessage: null,
-        createdAt: Date.now(),
-      }
-      await addMessage(userMessage)
-
-      const assistantMessage: Message = {
-        id: crypto.randomUUID(),
-        conversationId: activeConversationId,
-        role: 'assistant',
-        content: '',
-        status: 'streaming',
-        partIndex: 1,
-        totalParts: null,
-        thinkingContent: null,
-        errorMessage: null,
-        createdAt: Date.now(),
-      }
-      await addMessage(assistantMessage)
-
-      const chatMessages: ChatMessage[] = [
-        { role: 'system', content: systemPrompt },
-      ]
-      for (const msg of [...messages, userMessage]) {
-        if (msg.role === 'user' || msg.role === 'assistant') {
-          chatMessages.push({ role: msg.role, content: msg.content })
-        }
-      }
-
-      const abortController = new AbortController()
-      useConversationStore.getState().setStreamState({
-        isStreaming: true,
-        currentPartIndex: 1,
-        totalParts: null,
-        abortController,
+      sendMessage(activeConversationId, conversation.llmConfigId, input, messages).catch((err) => {
+        toast.error(err instanceof Error ? err.message : '发送失败')
       })
-
-      try {
-        const generator = streamChatCompletion(modelConfig, chatMessages, abortController.signal)
-        let accumulated = ''
-
-        for await (const chunk of generator) {
-          accumulated += chunk
-          await useConversationStore.getState().updateMessage(assistantMessage.id, {
-            content: accumulated,
-          })
-        }
-        await useConversationStore.getState().updateMessage(assistantMessage.id, {
-          status: 'completed',
-          totalParts: 1,
-        })
-      } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') {
-          await useConversationStore.getState().updateMessage(assistantMessage.id, { status: 'stopped' })
-        } else {
-          await useConversationStore.getState().updateMessage(assistantMessage.id, {
-            status: 'error',
-            errorMessage: err instanceof Error ? err.message : 'Unknown error',
-          })
-        }
-      } finally {
-        streamingRef.current = false
-        useConversationStore.getState().setStreamState({
-          isStreaming: false,
-          currentPartIndex: 0,
-          totalParts: null,
-          abortController: null,
-        })
-        await db.conversations.update(activeConversationId, { updatedAt: Date.now() })
-      }
     },
-    [activeConversationId, conversation, modelConfig, messages, systemPrompt, addMessage],
+    [activeConversationId, conversation, modelConfig, messages, streamState.isStreaming, sendMessage],
   )
 
   const assistantMessage = messages.find((m) => m.role === 'assistant')

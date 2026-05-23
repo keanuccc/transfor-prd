@@ -206,6 +206,94 @@ export function useLLMStream() {
     [systemPrompt, autoContinue, addMessage, updateMessage, setStreamState, getConfigById, streamWithAutoContinue],
   )
 
+  const sendMessage = useCallback(
+    async (conversationId: string, configId: string, userInput: string, existingMessages: Message[]) => {
+      const config = getConfigById(configId)
+      if (!config) throw new Error('未找到模型配置')
+
+      const pingResult = await pingLLM(config)
+      if (!pingResult.success) {
+        throw new Error(`模型连通性检查失败: ${pingResult.error}`)
+      }
+
+      accumulateRef.current = ''
+      const abortController = new AbortController()
+
+      const userMessage: Message = {
+        id: crypto.randomUUID(),
+        conversationId,
+        role: 'user',
+        content: userInput,
+        status: 'completed',
+        partIndex: 0,
+        totalParts: null,
+        thinkingContent: null,
+        errorMessage: null,
+        createdAt: Date.now(),
+      }
+      await addMessage(userMessage)
+
+      const assistantMessage: Message = {
+        id: crypto.randomUUID(),
+        conversationId,
+        role: 'assistant',
+        content: '',
+        status: 'streaming',
+        partIndex: 1,
+        totalParts: null,
+        thinkingContent: null,
+        errorMessage: null,
+        createdAt: Date.now(),
+      }
+      await addMessage(assistantMessage)
+
+      setStreamState({
+        isStreaming: true,
+        currentPartIndex: 1,
+        totalParts: null,
+        abortController,
+      })
+
+      const chatMessages: ChatMessage[] = [
+        { role: 'system', content: systemPrompt },
+      ]
+      for (const msg of existingMessages) {
+        if (msg.role === 'user' || msg.role === 'assistant') {
+          chatMessages.push({ role: msg.role, content: msg.content })
+        }
+      }
+      chatMessages.push({ role: 'user', content: userInput })
+
+      try {
+        await streamWithAutoContinue(
+          config,
+          chatMessages,
+          assistantMessage.id,
+          abortController.signal,
+          autoContinue,
+        )
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          await updateMessage(assistantMessage.id, { status: 'stopped' })
+        } else {
+          await updateMessage(assistantMessage.id, {
+            status: 'error',
+            errorMessage: err instanceof Error ? err.message : 'Unknown error',
+          })
+        }
+      } finally {
+        setStreamState({
+          isStreaming: false,
+          currentPartIndex: 0,
+          totalParts: null,
+          abortController: null,
+        })
+        await db.conversations.update(conversationId, { updatedAt: Date.now() })
+      }
+    },
+    [systemPrompt, autoContinue, addMessage, updateMessage, setStreamState, getConfigById, streamWithAutoContinue],
+  )
+
   const continueGeneration = useCallback(async () => {
     if (!activeConversationId || streamState.abortController) return
 
@@ -266,6 +354,7 @@ export function useLLMStream() {
 
   return {
     startGeneration,
+    sendMessage,
     continueGeneration,
     stopStreaming,
     streamState,
