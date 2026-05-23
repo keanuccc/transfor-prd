@@ -5,9 +5,11 @@ import defaultPrompt from '../../prompts/将Markdown格式思维导图转换为�
 interface SettingsState {
   systemPrompt: string
   autoContinue: boolean
+  enableCompletionSound: boolean
   setSystemPrompt: (prompt: string) => void
   restoreDefaultPrompt: () => void
   setAutoContinue: (value: boolean) => void
+  setEnableCompletionSound: (value: boolean) => void
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -15,12 +17,15 @@ export const useSettingsStore = create<SettingsState>()(
     (set) => ({
       systemPrompt: defaultPrompt,
       autoContinue: true,
+      enableCompletionSound: true,
 
       setSystemPrompt: (prompt) => set({ systemPrompt: prompt }),
 
       restoreDefaultPrompt: () => set({ systemPrompt: defaultPrompt }),
 
       setAutoContinue: (value) => set({ autoContinue: value }),
+
+      setEnableCompletionSound: (value) => set({ enableCompletionSound: value }),
     }),
     { name: 'settings-store' },
   ),

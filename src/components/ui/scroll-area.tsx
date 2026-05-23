@@ -1,12 +1,28 @@
 import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area"
+import { useRef, useCallback } from "react"
 
 import { cn } from "@/lib/utils"
 
 function ScrollArea({
   className,
   children,
+  viewportRef: externalRef,
   ...props
-}: ScrollAreaPrimitive.Root.Props) {
+}: ScrollAreaPrimitive.Root.Props & { viewportRef?: React.Ref<HTMLDivElement> }) {
+  const internalRef = useRef<HTMLDivElement>(null)
+
+  const setRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      internalRef.current = node
+      if (typeof externalRef === 'function') {
+        externalRef(node)
+      } else if (externalRef) {
+        ;(externalRef as React.MutableRefObject<HTMLDivElement | null>).current = node
+      }
+    },
+    [externalRef],
+  )
+
   return (
     <ScrollAreaPrimitive.Root
       data-slot="scroll-area"
@@ -14,6 +30,7 @@ function ScrollArea({
       {...props}
     >
       <ScrollAreaPrimitive.Viewport
+        ref={setRef}
         data-slot="scroll-area-viewport"
         className="size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1"
       >

@@ -20,10 +20,14 @@ import { ContinueButton } from '@/components/run/ContinueButton'
 import { MarkdownPreview } from '@/components/run/MarkdownPreview'
 import { EditorToolbar } from '@/components/run/EditorToolbar'
 import { ProgressIndicator } from '@/components/run/ProgressIndicator'
+import { BackToTop } from '@/components/run/BackToTop'
 import { useConversationStore } from '@/stores/conversationStore'
 import { useLLMStream } from '@/hooks/useLLMStream'
 import { useAppStore } from '@/stores/appStore'
 import { useLLMStore } from '@/stores/llmStore'
+import { useSettingsStore } from '@/stores/settingsStore'
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
+import { playCompletionSound } from '@/lib/sound'
 
 export function RunPage() {
   const { id } = useParams<{ id: string }>()
@@ -39,6 +43,8 @@ export function RunPage() {
   const [compareModelId, setCompareModelId] = useState<string>('')
   const [compareLoading, setCompareLoading] = useState(false)
   const [showCompare, setShowCompare] = useState(false)
+  const prdViewportRef = useRef<HTMLDivElement>(null)
+  const enableCompletionSound = useSettingsStore((s) => s.enableCompletionSound)
 
   useEffect(() => {
     setSidebarCollapsed(true)
@@ -70,6 +76,14 @@ export function RunPage() {
   useEffect(() => {
     startedRef.current = false
   }, [id])
+
+  const prevIsStreaming = useRef(false)
+  useEffect(() => {
+    if (prevIsStreaming.current && !streamState.isStreaming && assistantMessage?.content && enableCompletionSound) {
+      playCompletionSound()
+    }
+    prevIsStreaming.current = streamState.isStreaming
+  }, [streamState.isStreaming, assistantMessage?.content, enableCompletionSound])
 
   const handleSendMessage = useCallback(
     async (input: string) => {
@@ -149,6 +163,25 @@ export function RunPage() {
       return !prev
     })
   }, [assistantMessage, editContent, updateMessage])
+
+  const handleDownloadMd = useCallback(() => {
+    const content = assistantMessage?.content
+    if (!content) return
+    const fileName = conversation?.title ? `${conversation.title}.md` : '文档.md'
+    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = fileName
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.success('Markdown 下载成功')
+  }, [assistantMessage?.content, conversation?.title])
+
+  useKeyboardShortcuts({
+    onToggleEdit: assistantMessage ? handleToggleEditMode : undefined,
+    onExportMd: assistantMessage ? handleDownloadMd : undefined,
+  })
 
   const currentContent = editMode ? editContent : (assistantMessage?.content || '')
 
@@ -264,7 +297,7 @@ export function RunPage() {
           </div>
         )}
 
-        <ScrollArea className="min-h-0 flex-1">
+        <ScrollArea className="min-h-0 flex-1" viewportRef={prdViewportRef}>
           {currentContent ? (
             showCompare && comparisonAssistantMsg ? (
               <div className="grid grid-cols-2 divide-x h-full">
@@ -319,6 +352,8 @@ export function RunPage() {
             </div>
           )}
         </ScrollArea>
+
+        <BackToTop container={prdViewportRef.current} />
       </div>
     </div>
   )
