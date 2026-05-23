@@ -45,6 +45,7 @@ export async function* streamChatCompletion(
   let buffer = ''
 
   while (true) {
+    if (abortSignal.aborted) throw new DOMException('Aborted', 'AbortError')
     const { done, value } = await reader.read()
     if (done) break
 

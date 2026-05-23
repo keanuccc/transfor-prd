@@ -11,6 +11,7 @@ interface ConversationState {
   createConversation: (conv: Conversation) => Promise<void>
   deleteConversation: (id: string) => Promise<void>
   renameConversation: (id: string, title: string) => Promise<void>
+  moveToFolder: (id: string, folderId: string | undefined) => Promise<void>
   updateConversation: (id: string, updates: Partial<Conversation>) => Promise<void>
   setActiveConversation: (id: string | null) => Promise<void>
   loadMessages: (conversationId: string) => Promise<void>
@@ -60,6 +61,15 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     set((s) => ({
       conversations: s.conversations.map((c) =>
         c.id === id ? { ...c, title, updatedAt: Date.now() } : c,
+      ),
+    }))
+  },
+
+  moveToFolder: async (id, folderId) => {
+    await db.conversations.update(id, { folderId, updatedAt: Date.now() })
+    set((s) => ({
+      conversations: s.conversations.map((c) =>
+        c.id === id ? { ...c, folderId, updatedAt: Date.now() } : c,
       ),
     }))
   },

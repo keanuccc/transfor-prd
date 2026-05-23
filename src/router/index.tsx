@@ -3,6 +3,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { HomePage } from '@/pages/HomePage'
 import { RunPage } from '@/pages/RunPage'
 import { SettingsPage } from '@/pages/SettingsPage'
+import { SharePage } from '@/pages/SharePage'
 
 export const router = createBrowserRouter([
   {
@@ -13,4 +14,5 @@ export const router = createBrowserRouter([
       { path: '/settings', element: <SettingsPage /> },
     ],
   },
+  { path: '/share', element: <SharePage /> },
 ])

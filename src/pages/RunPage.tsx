@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useRef, useState, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { AlertCircle, Columns2, FileText, GitCompare, Loader2, X } from 'lucide-react'
+import { AlertCircle, Columns2, FileText, GitCompare, Loader2, Trophy, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
@@ -25,6 +25,12 @@ import { TableOfContents } from '@/components/run/TableOfContents'
 import { DiffView } from '@/components/run/DiffView'
 import { BackToTop } from '@/components/run/BackToTop'
 import { ScorePanel } from '@/components/run/ScorePanel'
+import { CompetitionView } from '@/components/run/CompetitionView'
+import { VersionHistory } from '@/components/run/VersionHistory'
+import { ShareDialog } from '@/components/run/ShareDialog'
+import { SyncDialog } from '@/components/run/SyncDialog'
+import { IssueSyncPanel } from '@/components/run/IssueSyncPanel'
+import { useSnapshotStore } from '@/stores/snapshotStore'
 import { parseScores, type ReviewScores } from '@/lib/reviewScoring'
 import { useConversationStore } from '@/stores/conversationStore'
 import { useLLMStream } from '@/hooks/useLLMStream'
@@ -38,7 +44,7 @@ export function RunPage() {
   const { id } = useParams<{ id: string }>()
   const { setActiveConversation, messages, activeConversationId, conversations, updateMessage } =
     useConversationStore()
-  const { streamState, stopStreaming, continueGeneration, startGeneration, sendMessage, refine, review, scoreReview, estimateTimeline, reverseToMindMap, startComparison } =
+  const { streamState, stopStreaming, continueGeneration, startGeneration, sendMessage, refine, review, scoreReview, estimateTimeline, reverseToMindMap, generateCodeSkeleton, startComparison, startCompetition } =
     useLLMStream()
   const { setSidebarCollapsed } = useAppStore()
   const { getConfigById, configs } = useLLMStore()
@@ -52,6 +58,15 @@ export function RunPage() {
   const [scoreReviewResult, setScoreReviewResult] = useState<ReviewScores | null>(null)
   const [scoreReviewLoading, setScoreReviewLoading] = useState(false)
   const [reverseMindMapPending, setReverseMindMapPending] = useState(false)
+  const [competitionModelIds, setCompetitionModelIds] = useState<string[]>([])
+  const [competitionRunning, setCompetitionRunning] = useState(false)
+  const [showCompetition, setShowCompetition] = useState(false)
+  const [competitionMsgIds, setCompetitionMsgIds] = useState<string[]>([])
+  const [showVersionHistory, setShowVersionHistory] = useState(false)
+  const [showShareDialog, setShowShareDialog] = useState(false)
+  const [showSyncDialog, setShowSyncDialog] = useState(false)
+  const [showIssueSync, setShowIssueSync] = useState(false)
+  const { loadSnapshots, createSnapshot } = useSnapshotStore()
   const prdViewportRef = useRef<HTMLDivElement>(null)
   const enableCompletionSound = useSettingsStore((s) => s.enableCompletionSound)
 
@@ -76,6 +91,14 @@ export function RunPage() {
   }, [setSidebarCollapsed])
 
   const conversation = conversations.find((c) => c.id === id)
+
+  // Load snapshots when conversation changes
+  useEffect(() => {
+    if (id) {
+      loadSnapshots(id)
+    }
+  }, [id, loadSnapshots])
+
   const modelConfig = conversation ? getConfigById(conversation.llmConfigId) : undefined
   const hasAssistantMessage = messages.some((m) => m.role === 'assistant')
 
@@ -132,10 +155,14 @@ export function RunPage() {
       toast.error('请等待当前生成完成后再执行精修')
       return
     }
+    const content = assistantMessage?.content
+    if (content && id) {
+      createSnapshot(id, content, `精修前自动保存 - ${new Date().toLocaleString('zh-CN')}`)
+    }
     refine().catch((err) => {
       toast.error(err instanceof Error ? err.message : '精修失败')
     })
-  }, [refine, streamState.isStreaming])
+  }, [refine, streamState.isStreaming, assistantMessage?.content, id, createSnapshot])
 
   const handleReview = useCallback(() => {
     if (streamState.isStreaming) {
@@ -201,6 +228,27 @@ export function RunPage() {
     })
   }, [reverseToMindMap, streamState.isStreaming])
 
+  const handleToggleVersionHistory = useCallback(() => {
+    setShowVersionHistory((prev) => !prev)
+  }, [])
+
+  const handleRestoreVersion = useCallback((content: string) => {
+    if (assistantMessage) {
+      updateMessage(assistantMessage.id, { content })
+      toast.success('已恢复历史版本')
+    }
+  }, [assistantMessage, updateMessage])
+
+  const handleGenerateCodeSkeleton = useCallback(() => {
+    if (streamState.isStreaming) {
+      toast.error('请等待当前生成完成后再执行')
+      return
+    }
+    generateCodeSkeleton().catch((err) => {
+      toast.error(err instanceof Error ? err.message : '代码骨架生成失败')
+    })
+  }, [generateCodeSkeleton, streamState.isStreaming])
+
   // Auto-download mind map when reverse generation completes
   const prevReverseStreaming = useRef(false)
   useEffect(() => {
@@ -246,6 +294,62 @@ export function RunPage() {
     }
   }, [compareModelId, streamState.isStreaming, startComparison])
 
+  const handleStartCompetition = useCallback(async () => {
+    if (streamState.isStreaming) {
+      toast.error('请等待当前生成完成后再开始竞赛')
+      return
+    }
+    if (competitionModelIds.length < 2) {
+      toast.error('请至少选择 2 个竞赛模型')
+      return
+    }
+
+    // Snapshot message IDs before competition, so we can find new ones after
+    const beforeIds = new Set(messages.map((m) => m.id))
+
+    setCompetitionRunning(true)
+    setShowCompetition(true)
+
+    try {
+      // Include the current conversation's model as first competitor
+      const allCompetitorIds = conversation?.llmConfigId
+        ? [conversation.llmConfigId, ...competitionModelIds]
+        : competitionModelIds
+      await startCompetition(allCompetitorIds.slice(0, 3))
+
+      // Find competition messages (new ones added during competition)
+      const currentMsgs = useConversationStore.getState().messages
+      const newAssistantIds = currentMsgs
+        .filter((m) => !beforeIds.has(m.id) && m.role === 'assistant')
+        .map((m) => m.id)
+      setCompetitionMsgIds(newAssistantIds)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '竞赛失败')
+    } finally {
+      setCompetitionRunning(false)
+    }
+  }, [competitionModelIds, conversation?.llmConfigId, messages, streamState.isStreaming, startCompetition])
+
+  // Compile competition competitors info
+  const competitionCompetitors = useMemo(() => {
+    if (!showCompetition || competitionMsgIds.length === 0) return []
+    const currentMsgs = useConversationStore.getState().messages
+    return competitionMsgIds.map((id) => {
+      const msg = currentMsgs.find((m) => m.id === id) || null
+      // Extract model name from the preceding user message
+      const msgIdx = currentMsgs.findIndex((m) => m.id === id)
+      let modelName = 'Unknown'
+      if (msgIdx > 0) {
+        const prevUserMsg = currentMsgs[msgIdx - 1]
+        if (prevUserMsg?.role === 'user') {
+          const match = prevUserMsg.content.match(/\[竞赛: (.+?)\]/)
+          if (match) modelName = match[1]
+        }
+      }
+      return { modelName, message: msg }
+    })
+  }, [showCompetition, competitionMsgIds, messages])
+
   // Find comparison assistant message
   const comparisonAssistantMsg = useMemo(() => {
     const compareUserIdx = messages.findIndex((m) => m.role === 'user' && m.content.startsWith('[模型对比:'))
@@ -267,12 +371,15 @@ export function RunPage() {
     setEditMode((prev) => {
       if (!prev && assistantMessage) {
         setEditContent(assistantMessage.content)
-      } else if (prev && assistantMessage) {
+      } else if (prev && assistantMessage && editContent !== assistantMessage.content) {
         updateMessage(assistantMessage.id, { content: editContent })
+        if (id && assistantMessage.content) {
+          createSnapshot(id, assistantMessage.content, `编辑前自动保存 - ${new Date().toLocaleString('zh-CN')}`)
+        }
       }
       return !prev
     })
-  }, [assistantMessage, editContent, updateMessage])
+  }, [assistantMessage, editContent, updateMessage, id, createSnapshot])
 
   const handleDownloadMd = useCallback(() => {
     const content = assistantMessage?.content
@@ -370,6 +477,13 @@ export function RunPage() {
           onScoreReview={handleScoreReview}
           onEstimateTimeline={handleEstimateTimeline}
           onReverseToMindMap={handleReverseToMindMap}
+          onGenerateCodeSkeleton={handleGenerateCodeSkeleton}
+          onToggleVersionHistory={handleToggleVersionHistory}
+          showVersionHistory={showVersionHistory}
+          onShare={() => setShowShareDialog(true)}
+          onSync={() => setShowSyncDialog(true)}
+          onIssueSync={() => setShowIssueSync((p) => !p)}
+          showIssueSync={showIssueSync}
         />
 
         {/* Comparison bar */}
@@ -420,10 +534,64 @@ export function RunPage() {
           </div>
         )}
 
+        {/* Competition bar */}
+        {currentContent && configs.length >= 2 && (
+          <div className="flex items-center gap-2 border-b px-3 py-1.5">
+            <Trophy className="h-3.5 w-3.5 text-amber-400" />
+            <span className="text-xs text-muted-foreground">竞赛模式</span>
+            {Array.from({ length: 2 }).map((_, i) => (
+              <Select
+                key={i}
+                value={competitionModelIds[i] || ''}
+                onValueChange={(v) => {
+                  setCompetitionModelIds((prev) => {
+                    const next = [...prev]
+                    next[i] = v || ''
+                    return next
+                  })
+                }}
+              >
+                <SelectTrigger className="h-7 w-36 text-xs">
+                  <SelectValue placeholder={`模型 ${i + 2}`} />
+                </SelectTrigger>
+                <SelectContent>
+                  {configs.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.modelName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ))}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={handleStartCompetition}
+              disabled={competitionModelIds.length < 2 || competitionRunning || streamState.isStreaming}
+            >
+              {competitionRunning ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
+              开始竞赛
+            </Button>
+            {showCompetition && (
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                className="ml-auto"
+                onClick={() => { setShowCompetition(false); setCompetitionMsgIds([]) }}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+        )}
+
         <div className="flex min-h-0 flex-1">
           <ScrollArea className="min-h-0 flex-1" viewportRef={prdViewportRef}>
             {currentContent ? (
-              showCompare && comparisonAssistantMsg ? (
+              showCompetition && competitionCompetitors.length > 0 ? (
+                <CompetitionView competitors={competitionCompetitors} />
+              ) : showCompare && comparisonAssistantMsg ? (
                 compareDiffMode ? (
                   <div className="px-4 py-4">
                     <DiffView
@@ -486,7 +654,21 @@ export function RunPage() {
             )}
           </ScrollArea>
 
-          {currentContent && !editMode && !showCompare && (
+          {currentContent && !editMode && !showCompare && showVersionHistory && id && (
+            <VersionHistory
+              conversationId={id}
+              currentContent={currentContent}
+              onRestore={handleRestoreVersion}
+              onClose={() => setShowVersionHistory(false)}
+            />
+          )}
+          {currentContent && !editMode && !showCompare && showIssueSync && (
+            <IssueSyncPanel
+              content={currentContent}
+              onClose={() => setShowIssueSync(false)}
+            />
+          )}
+          {currentContent && !editMode && !showCompare && !showVersionHistory && !showIssueSync && (
             <div className="w-44 shrink-0 overflow-auto border-l border-border/40 bg-muted/10 px-3 py-4">
               <TableOfContents content={currentContent} />
             </div>
@@ -496,6 +678,19 @@ export function RunPage() {
         <ScorePanel scores={scoreReviewResult} loading={scoreReviewLoading} />
 
         <BackToTop container={prdViewportRef.current} />
+
+        <ShareDialog
+          open={showShareDialog}
+          onOpenChange={setShowShareDialog}
+          content={currentContent}
+        />
+
+        <SyncDialog
+          open={showSyncDialog}
+          onOpenChange={setShowSyncDialog}
+          content={currentContent}
+          title={conversation?.title || 'PRD 文档'}
+        />
       </div>
     </div>
   )

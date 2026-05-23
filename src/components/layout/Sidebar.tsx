@@ -16,6 +16,11 @@ import {
   Star,
   Tag,
   X,
+  Folder,
+  FolderOpen,
+  ChevronRight,
+  ChevronDown,
+  FolderPlus,
 } from 'lucide-react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Button } from '@/components/ui/button'
@@ -28,6 +33,7 @@ import {
 } from '@/components/ui/tooltip'
 import { useAppStore, type Theme } from '@/stores/appStore'
 import { useConversationStore } from '@/stores/conversationStore'
+import { useFolderStore } from '@/stores/folderStore'
 import { cn } from '@/lib/utils'
 
 const themeOptions: { value: Theme; icon: typeof Sun; label: string }[] = [
@@ -80,15 +86,23 @@ function ThemeToggle({ collapsed }: { collapsed: boolean }) {
 export function Sidebar() {
   const navigate = useNavigate()
   const { sidebarCollapsed, toggleSidebar } = useAppStore()
-  const { conversations, activeConversationId, setActiveConversation, deleteConversation, renameConversation, updateConversation } =
+  const { conversations, activeConversationId, setActiveConversation, deleteConversation, renameConversation, moveToFolder, updateConversation } =
     useConversationStore()
+  const { folders, addFolder, renameFolder, deleteFolder } = useFolderStore()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editTitle, setEditTitle] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [taggingId, setTaggingId] = useState<string | null>(null)
   const [tagInput, setTagInput] = useState('')
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
+  const [showNewFolder, setShowNewFolder] = useState(false)
+  const [newFolderName, setNewFolderName] = useState('')
+  const [editingFolderId, setEditingFolderId] = useState<string | null>(null)
+  const [editFolderName, setEditFolderName] = useState('')
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
   const editInputRef = useRef<HTMLInputElement>(null)
   const tagInputRef = useRef<HTMLInputElement>(null)
+  const folderInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (editingId && editInputRef.current) {
@@ -158,17 +172,47 @@ export function Sidebar() {
     setTagInput('')
   }
 
-  const handleRemoveTag = async (e: React.MouseEvent, id: string, tags: string[], tag: string) => {
-    e.stopPropagation()
-    await updateConversation(id, { tags: tags.filter((t) => t !== tag) })
-  }
-
   const handleTagKeyDown = (e: React.KeyboardEvent, id: string, tags: string[]) => {
     if (e.key === 'Enter') handleAddTag(id, tags)
     if (e.key === 'Escape') {
       setTaggingId(null)
       setTagInput('')
     }
+  }
+
+  const handleCreateFolder = () => {
+    const name = newFolderName.trim()
+    if (!name) return
+    addFolder(name)
+    setNewFolderName('')
+    setShowNewFolder(false)
+  }
+
+  const handleStartRenameFolder = (e: React.MouseEvent, id: string, name: string) => {
+    e.stopPropagation()
+    setEditingFolderId(id)
+    setEditFolderName(name)
+  }
+
+  const handleFinishRenameFolder = (id: string) => {
+    const name = editFolderName.trim()
+    if (name) renameFolder(id, name)
+    setEditingFolderId(null)
+    setEditFolderName('')
+  }
+
+  const handleDeleteFolder = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
+    deleteFolder(id)
+  }
+
+  const handleToggleFolder = (id: string) => {
+    setExpandedFolders((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
   }
 
   // Filtered and sorted conversations — starred first, then by updatedAt desc
@@ -178,12 +222,15 @@ export function Sidebar() {
           conv.title.toLowerCase().includes(searchQuery.toLowerCase()),
         )
       : [...conversations]
+    if (selectedFolderId) {
+      list = list.filter((conv) => conv.folderId === selectedFolderId)
+    }
     list.sort((a, b) => {
       if (a.starred !== b.starred) return a.starred ? -1 : 1
       return b.updatedAt - a.updatedAt
     })
     return list
-  }, [conversations, searchQuery])
+  }, [conversations, searchQuery, selectedFolderId])
 
   const listRef = useRef<HTMLDivElement>(null)
   const ITEM_HEIGHT = 40
@@ -245,6 +292,111 @@ export function Sidebar() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="h-7 pl-7 text-xs"
           />
+        </div>
+      )}
+
+      {/* Folder section */}
+      {!sidebarCollapsed && (
+        <div className="mx-2 mt-2">
+          <div className="flex items-center justify-between px-1">
+            <button
+              onClick={() => setSelectedFolderId(null)}
+              className={cn(
+                'text-[11px] font-medium transition-colors',
+                selectedFolderId === null ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              全部对话
+            </button>
+            <button
+              onClick={() => setShowNewFolder((p) => !p)}
+              className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+              title="新建文件夹"
+            >
+              <FolderPlus className="h-3 w-3" />
+            </button>
+          </div>
+          {showNewFolder && (
+            <div className="mt-1 flex items-center gap-1 px-1">
+              <Input
+                ref={folderInputRef}
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleCreateFolder()
+                  if (e.key === 'Escape') { setShowNewFolder(false); setNewFolderName('') }
+                }}
+                placeholder="文件夹名称"
+                className="h-6 flex-1 text-xs"
+                autoFocus
+              />
+              <Button variant="ghost" size="icon-xs" onClick={handleCreateFolder}>
+                <Plus className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
+          {folders.map((folder) => {
+            const count = conversations.filter((c) => c.folderId === folder.id).length
+            const isExpanded = expandedFolders.has(folder.id)
+            const isSelected = selectedFolderId === folder.id
+            return (
+              <div key={folder.id} className="mt-0.5">
+                <div
+                  className={cn(
+                    'group flex items-center gap-1 rounded px-1 py-0.5 text-xs cursor-pointer transition-colors',
+                    isSelected ? 'bg-muted font-medium' : 'hover:bg-muted/60',
+                  )}
+                  onClick={() => {
+                    setSelectedFolderId(folder.id)
+                    setExpandedFolders((prev) => {
+                      const next = new Set(prev)
+                      next.add(folder.id)
+                      return next
+                    })
+                  }}
+                >
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleToggleFolder(folder.id) }}
+                    className="flex size-4 items-center justify-center"
+                  >
+                    {isExpanded ? <ChevronDown className="size-3 text-muted-foreground" /> : <ChevronRight className="size-3 text-muted-foreground" />}
+                  </button>
+                  {isExpanded ? <FolderOpen className="size-3 text-muted-foreground" /> : <Folder className="size-3 text-muted-foreground" />}
+                  {editingFolderId === folder.id ? (
+                    <input
+                      value={editFolderName}
+                      onChange={(e) => setEditFolderName(e.target.value)}
+                      onBlur={() => handleFinishRenameFolder(folder.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleFinishRenameFolder(folder.id)
+                        if (e.key === 'Escape') setEditingFolderId(null)
+                      }}
+                      className="h-4 flex-1 min-w-0 rounded border border-border px-1 text-[11px] outline-none"
+                      onClick={(e) => e.stopPropagation()}
+                      autoFocus
+                    />
+                  ) : (
+                    <span className="flex-1 truncate">{folder.name}</span>
+                  )}
+                  <span className="text-[10px] text-muted-foreground">{count}</span>
+                  <div className="hidden group-hover:flex items-center gap-0.5">
+                    <button
+                      onClick={(e) => handleStartRenameFolder(e, folder.id, folder.name)}
+                      className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+                    >
+                      <Pencil className="size-2.5" />
+                    </button>
+                    <button
+                      onClick={(e) => handleDeleteFolder(e, folder.id)}
+                      className="rounded p-0.5 text-muted-foreground hover:text-destructive"
+                    >
+                      <X className="size-2.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
 
@@ -324,6 +476,21 @@ export function Sidebar() {
                           )}
                         />
                       </button>
+                      {/* Move to folder on hover */}
+                      <div className="shrink-0 opacity-0 group-hover:opacity-100 relative" onClick={(e) => e.stopPropagation()}>
+                        <select
+                          value={conv.folderId || ''}
+                          onChange={(e) => moveToFolder(conv.id, e.target.value || undefined)}
+                          className="h-5 w-5 cursor-pointer appearance-none rounded border-0 bg-transparent text-[0px] opacity-0 absolute inset-0"
+                          title="移动到文件夹"
+                        >
+                          <option value="">-</option>
+                          {folders.map((f) => (
+                            <option key={f.id} value={f.id}>{f.name}</option>
+                          ))}
+                        </select>
+                        <Folder className="h-2.5 w-2.5 text-muted-foreground" />
+                      </div>
                       {/* Tag edit on hover */}
                       <div className="shrink-0 opacity-0 group-hover:opacity-100">
                         {taggingId === conv.id ? (

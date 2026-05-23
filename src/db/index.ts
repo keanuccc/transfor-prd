@@ -1,9 +1,10 @@
 import Dexie, { type Table } from 'dexie'
-import type { Conversation, Message } from '@/types'
+import type { Conversation, Message, Snapshot } from '@/types'
 
 class AppDatabase extends Dexie {
   conversations!: Table<Conversation, string>
   messages!: Table<Message, string>
+  snapshots!: Table<Snapshot, string>
 
   constructor() {
     super('transfor-prd')
@@ -16,6 +17,11 @@ class AppDatabase extends Dexie {
         if (conv.tags === undefined) conv.tags = []
         if (conv.starred === undefined) conv.starred = false
       })
+    })
+    this.version(3).stores({
+      conversations: 'id, createdAt, updatedAt',
+      messages: 'id, conversationId, createdAt',
+      snapshots: 'id, conversationId, createdAt',
     })
   }
 }

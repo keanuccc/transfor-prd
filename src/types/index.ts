@@ -20,6 +20,20 @@ export interface Conversation {
   userDescription: string
   tags: string[]
   starred: boolean
+  folderId?: string
+}
+
+export interface Folder {
+  id: string
+  name: string
+  createdAt: number
+}
+
+export interface KnowledgeDoc {
+  id: string
+  name: string
+  content: string
+  createdAt: number
 }
 
 export type MessageRole = 'user' | 'assistant' | 'system'
@@ -53,4 +67,12 @@ export interface AppSettings {
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant'
   content: string
+}
+
+export interface Snapshot {
+  id: string
+  conversationId: string
+  content: string
+  label: string
+  createdAt: number
 }

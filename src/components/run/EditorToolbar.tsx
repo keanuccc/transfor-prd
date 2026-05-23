@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Copy, Download, Eye, Pencil, Sparkles, FileText, FileCode, Moon, ChevronDown, ClipboardCheck, BarChart3, Clock, GitFork } from 'lucide-react'
+import { Copy, Download, Eye, Pencil, Sparkles, FileText, FileCode, Moon, ChevronDown, ClipboardCheck, BarChart3, Clock, GitFork, Code2, History, Link2, Share2, Bug } from 'lucide-react'
 import { marked } from 'marked'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,6 +22,13 @@ interface EditorToolbarProps {
   onScoreReview: () => void
   onEstimateTimeline: () => void
   onReverseToMindMap: () => void
+  onGenerateCodeSkeleton: () => void
+  onToggleVersionHistory: () => void
+  showVersionHistory: boolean
+  onShare: () => void
+  onSync: () => void
+  onIssueSync: () => void
+  showIssueSync: boolean
 }
 
 marked.setOptions({ gfm: true, breaks: false })
@@ -150,7 +157,7 @@ function convertToLatex(md: string): string {
   return result
 }
 
-export function EditorToolbar({ content, fileName, editMode, isStreaming, onToggleEditMode, onRefine, onReview, onScoreReview, onEstimateTimeline, onReverseToMindMap }: EditorToolbarProps) {
+export function EditorToolbar({ content, fileName, editMode, isStreaming, onToggleEditMode, onRefine, onReview, onScoreReview, onEstimateTimeline, onReverseToMindMap, onGenerateCodeSkeleton, onToggleVersionHistory, showVersionHistory, onShare, onSync, onIssueSync, showIssueSync }: EditorToolbarProps) {
   const renderedHtml = useMemo(() => {
     if (!content) return ''
     try {
@@ -367,6 +374,18 @@ ${latex}
         <GitFork className="h-3 w-3" />
         反向生成思维导图
       </Button>
+      <Button variant={showVersionHistory ? 'secondary' : 'ghost'} size="xs" className="gap-1" onClick={onToggleVersionHistory} disabled={!content}>
+        <History className="h-3 w-3" />
+        版本
+      </Button>
+      <Button variant={showIssueSync ? 'secondary' : 'ghost'} size="xs" className="gap-1" onClick={onIssueSync} disabled={!content || isStreaming}>
+        <Bug className="h-3 w-3" />
+        Issue
+      </Button>
+      <Button variant="ghost" size="xs" className="gap-1" onClick={onGenerateCodeSkeleton} disabled={!content || isStreaming}>
+        <Code2 className="h-3 w-3" />
+        代码骨架
+      </Button>
 
       <DropdownMenu>
         <DropdownMenuTrigger
@@ -413,6 +432,16 @@ ${latex}
           <DropdownMenuItem onClick={handleExportPdfDark} disabled={!content}>
             <Moon className="h-3.5 w-3.5" />
             导出暗色 PDF
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={onShare} disabled={!content}>
+            <Link2 className="h-3.5 w-3.5" />
+            生成分享链接
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={onSync} disabled={!content}>
+            <Share2 className="h-3.5 w-3.5" />
+            同步到文档平台
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

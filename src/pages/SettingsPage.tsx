@@ -4,6 +4,7 @@ import { LLMConfigList } from '@/components/settings/LLMConfigList'
 import { SystemPromptEditor } from '@/components/settings/SystemPromptEditor'
 import { CustomTemplateList } from '@/components/settings/CustomTemplateList'
 import { SecurityWarning } from '@/components/settings/SecurityWarning'
+import { KnowledgeBaseList } from '@/components/settings/KnowledgeBaseList'
 import { useSettingsStore } from '@/stores/settingsStore'
 
 export function SettingsPage() {
@@ -24,6 +25,10 @@ export function SettingsPage() {
         <Separator />
 
         <CustomTemplateList />
+
+        <Separator />
+
+        <KnowledgeBaseList />
 
         <Separator />
 

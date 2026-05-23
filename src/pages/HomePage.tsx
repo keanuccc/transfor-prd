@@ -10,6 +10,7 @@ import { StyleSelector } from '@/components/home/StyleSelector'
 import { GenerateButton } from '@/components/home/GenerateButton'
 import { ClarifyToggle } from '@/components/home/ClarifyToggle'
 import { ClarificationDialog } from '@/components/home/ClarificationDialog'
+import { MindMapTree } from '@/components/home/MindMapTree'
 import { BatchProgress, type BatchFileStatus } from '@/components/home/BatchProgress'
 import { defaultTemplate } from '@/lib/templates'
 import { STYLE_OPTIONS } from '@/lib/stylePrompts'
@@ -37,6 +38,7 @@ export function HomePage() {
   const [clarifyLoading, setClarifyLoading] = useState(false)
   const [batchItems, setBatchItems] = useState<BatchFileStatus[]>([])
   const [batchRunning, setBatchRunning] = useState(false)
+  const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set())
 
   const handleFilesChange = useCallback((newFiles: FileItem[]) => {
     // Validate extensions
@@ -68,6 +70,10 @@ export function HomePage() {
     const stylePrompt = STYLE_OPTIONS.find((s) => s.id === styleId)?.prompt || ''
     const fullDescription = finalUserInput + stylePrompt
 
+    const selectedContent = selectedPaths.size > 0
+      ? Array.from(selectedPaths).join('\n')
+      : fileContent
+
     await createConversation({
       id: convId,
       title,
@@ -76,7 +82,7 @@ export function HomePage() {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       sourceFileName: fileName,
-      sourceFileContent: fileContent,
+      sourceFileContent: selectedContent,
       userDescription: fullDescription,
       tags: [],
       starred: false,
@@ -85,7 +91,7 @@ export function HomePage() {
     await setActiveConversation(convId)
     navigate(`/run/${convId}`)
     // RunPage auto-start effect handles startGeneration
-  }, [selectedModelId, styleId, selectedTemplateId, createConversation, setActiveConversation, navigate, getDefaultConfig])
+  }, [selectedModelId, styleId, selectedTemplateId, selectedPaths, createConversation, setActiveConversation, navigate, getDefaultConfig])
 
   const doBatchGenerate = useCallback(async () => {
     const config = selectedModelId
@@ -162,6 +168,7 @@ export function HomePage() {
   }, [files, userInput, styleId, selectedModelId, selectedTemplateId, createConversation, setActiveConversation, getDefaultConfig, startGeneration])
 
   const handleGenerate = useCallback(async () => {
+    if (clarifyLoading || showClarifyDialog) return
     const validFiles = files.filter((f) => !f.error && f.content)
     if (validFiles.length === 0) {
       toast.error('请先上传有效的 Markdown 文件')
@@ -190,6 +197,7 @@ export function HomePage() {
       return
     }
 
+    setClarifyQuestions([])
     setClarifyLoading(true)
     setShowClarifyDialog(true)
     try {
@@ -202,7 +210,7 @@ export function HomePage() {
 
       const jsonMatch = response.match(/\[[\s\S]*\]/)
       if (jsonMatch) {
-        const questions = JSON.parse(jsonMatch[0])
+        const questions = [...new Set(JSON.parse(jsonMatch[0]) as string[])]
         if (Array.isArray(questions) && questions.length > 0) {
           setClarifyQuestions(questions)
         } else {
@@ -216,7 +224,7 @@ export function HomePage() {
     } finally {
       setClarifyLoading(false)
     }
-  }, [files, clarifyEnabled, userInput, selectedModelId, getDefaultConfig, doGenerate, doBatchGenerate])
+  }, [files, clarifyEnabled, userInput, selectedModelId, getDefaultConfig, doGenerate, doBatchGenerate, clarifyLoading, showClarifyDialog])
 
   const handleClarifyConfirm = useCallback((answers: string[]) => {
     setShowClarifyDialog(false)
@@ -269,6 +277,14 @@ export function HomePage() {
           />
         </div>
 
+        {!isBatch && files.length === 1 && files[0].content && (
+          <MindMapTree
+            content={files[0].content}
+            selectedPaths={selectedPaths}
+            onSelectedPathsChange={setSelectedPaths}
+          />
+        )}
+
         <div className="space-y-1.5">
           <Label className="text-xs font-medium">写作风格</Label>
           <StyleSelector value={styleId} onChange={setStyleId} />
@@ -300,8 +316,8 @@ export function HomePage() {
         )}
 
         <GenerateButton
-          loading={loading || batchRunning}
-          disabled={files.filter((f) => !f.error && f.content).length === 0 || configs.length === 0}
+          loading={loading || batchRunning || clarifyLoading}
+          disabled={files.filter((f) => !f.error && f.content).length === 0 || configs.length === 0 || clarifyLoading}
           onClick={handleGenerate}
           label={isBatch ? `批量生成 (${files.filter((f) => !f.error).length} 个文件)` : undefined}
         />
