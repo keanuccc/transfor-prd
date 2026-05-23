@@ -185,7 +185,7 @@ export function RunPage() {
           />
         )}
 
-        <ScrollArea className="flex-1">
+        <ScrollArea className="min-h-0 flex-1">
           <div className="px-3">
             {messages.length === 0 && !streamState.isStreaming && (
               <div className="flex items-center justify-center py-8 text-xs text-muted-foreground">
@@ -264,7 +264,7 @@ export function RunPage() {
           </div>
         )}
 
-        <ScrollArea className="flex-1">
+        <ScrollArea className="min-h-0 flex-1">
           {currentContent ? (
             showCompare && comparisonAssistantMsg ? (
               <div className="grid grid-cols-2 divide-x h-full">

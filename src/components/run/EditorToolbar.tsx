@@ -1,4 +1,6 @@
+import { useMemo } from 'react'
 import { Copy, Download, Eye, Pencil, Sparkles, FileText, ChevronDown } from 'lucide-react'
+import { marked } from 'marked'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -18,15 +20,50 @@ interface EditorToolbarProps {
   onRefine: () => void
 }
 
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
+marked.setOptions({ gfm: true, breaks: false })
+
+const EXPORT_STYLES = `
+  body {
+    font-family: 'Microsoft YaHei', 'PingFang SC', -apple-system, sans-serif;
+    line-height: 1.8;
+    max-width: 820px;
+    margin: 40px auto;
+    padding: 0 24px;
+    color: #1a1a1a;
+  }
+  h1 { font-size: 28px; font-weight: 700; border-bottom: 2px solid #e5e5e5; padding-bottom: 10px; margin-top: 32px; margin-bottom: 16px; }
+  h2 { font-size: 22px; font-weight: 600; margin-top: 28px; margin-bottom: 12px; }
+  h3 { font-size: 18px; font-weight: 600; margin-top: 24px; margin-bottom: 10px; }
+  h4 { font-size: 16px; font-weight: 600; margin-top: 20px; margin-bottom: 8px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 24px; margin: 10px 0; }
+  li { margin: 4px 0; }
+  pre { background: #f6f8fa; border-radius: 6px; padding: 14px 18px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+  code { background: #f6f8fa; padding: 2px 6px; border-radius: 3px; font-size: 13px; font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 14px 0; }
+  th, td { border: 1px solid #d0d7de; padding: 10px 14px; text-align: left; }
+  th { background: #f6f8fa; font-weight: 600; }
+  tr:nth-child(even) td { background: #fafbfc; }
+  blockquote { border-left: 3px solid #d0d7de; padding-left: 16px; margin: 14px 0; color: #57606a; }
+  hr { border: none; border-top: 1px solid #e5e5e5; margin: 24px 0; }
+  strong { font-weight: 600; }
+  @media print {
+    body { margin: 0; padding: 0 20px; }
+    pre, blockquote, table { page-break-inside: avoid; }
+  }
+`
 
 export function EditorToolbar({ content, fileName, editMode, isStreaming, onToggleEditMode, onRefine }: EditorToolbarProps) {
+  const renderedHtml = useMemo(() => {
+    if (!content) return ''
+    try {
+      return marked.parse(content) as string
+    } catch {
+      return `<pre>${content}</pre>`
+    }
+  }, [content])
+
   const handleCopy = async () => {
     if (!content) return
     try {
@@ -55,21 +92,9 @@ export function EditorToolbar({ content, fileName, editMode, isStreaming, onTogg
 <html>
 <head>
   <meta charset="utf-8">
-  <style>
-    body { font-family: 'Microsoft YaHei', sans-serif; line-height: 1.8; max-width: 800px; margin: 40px auto; padding: 0 20px; }
-    h1 { font-size: 24px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
-    h2 { font-size: 20px; }
-    h3 { font-size: 16px; }
-    pre { background: #f5f5f5; padding: 12px; border-radius: 4px; overflow-x: auto; }
-    code { background: #f5f5f5; padding: 2px 4px; border-radius: 2px; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-    th { background: #f5f5f5; }
-  </style>
+  <style>${EXPORT_STYLES}</style>
 </head>
-<body>
-<pre style="white-space: pre-wrap; font-family: inherit; background: none; padding: 0;">${escapeHtml(content)}</pre>
-</body>
+<body>${renderedHtml}</body>
 </html>`
     const blob = new Blob([htmlContent], { type: 'application/msword;charset=utf-8' })
     const url = URL.createObjectURL(blob)
@@ -87,22 +112,9 @@ export function EditorToolbar({ content, fileName, editMode, isStreaming, onTogg
 <html>
 <head>
   <meta charset="utf-8">
-  <style>
-    body { font-family: 'Microsoft YaHei', sans-serif; line-height: 1.8; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #333; }
-    h1 { font-size: 24px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
-    h2 { font-size: 20px; }
-    h3 { font-size: 16px; }
-    pre { background: #f5f5f5; padding: 12px; border-radius: 4px; overflow-x: auto; font-size: 13px; }
-    code { background: #f5f5f5; padding: 2px 4px; border-radius: 2px; font-size: 13px; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-    th { background: #f5f5f5; }
-    @media print { body { margin: 0; padding: 0 20px; } }
-  </style>
+  <style>${EXPORT_STYLES}</style>
 </head>
-<body>
-<pre style="white-space: pre-wrap; font-family: inherit; background: none; padding: 0;">${escapeHtml(content)}</pre>
-</body>
+<body>${renderedHtml}</body>
 </html>`
     const printWindow = window.open('', '_blank')
     if (!printWindow) {
@@ -115,8 +127,7 @@ export function EditorToolbar({ content, fileName, editMode, isStreaming, onTogg
     printWindow.addEventListener('load', () => {
       printWindow.print()
     })
-    // Fallback if load event doesn't fire
-    setTimeout(() => printWindow.print(), 500)
+    setTimeout(() => printWindow.print(), 800)
   }
 
   const baseName = fileName?.replace(/\.[^.]+$/, '') || '文档'
@@ -144,29 +155,29 @@ export function EditorToolbar({ content, fileName, editMode, isStreaming, onTogg
 
       <DropdownMenu>
         <DropdownMenuTrigger
-          render={
-            <Button variant="ghost" size="xs" className="gap-1" disabled={!content}>
+          render={(props) => (
+            <Button {...props} variant="ghost" size="xs" className="gap-1" disabled={!content}>
               <Download className="h-3 w-3" />
               导出
               <ChevronDown className="h-2.5 w-2.5" />
             </Button>
-          }
+          )}
         />
         <DropdownMenuContent align="end" className="min-w-[160px]">
-          <DropdownMenuItem onSelect={handleCopy}>
+          <DropdownMenuItem onClick={handleCopy} disabled={!content}>
             <Copy className="h-3.5 w-3.5" />
             复制 Markdown
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={handleDownloadMd}>
+          <DropdownMenuItem onClick={handleDownloadMd} disabled={!content}>
             <Download className="h-3.5 w-3.5" />
             下载 {baseName}.md
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={handleExportWord}>
+          <DropdownMenuItem onClick={handleExportWord} disabled={!content}>
             <FileText className="h-3.5 w-3.5" />
             导出 Word (.doc)
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={handleExportPdf}>
+          <DropdownMenuItem onClick={handleExportPdf} disabled={!content}>
             <FileText className="h-3.5 w-3.5" />
             导出 PDF
           </DropdownMenuItem>
