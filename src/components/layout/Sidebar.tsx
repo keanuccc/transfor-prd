@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useState, useRef, useEffect, useMemo } from 'react'
 import {
+  Brain,
   Plus,
   Search,
   Settings,
@@ -185,7 +186,7 @@ export function Sidebar() {
   }, [conversations, searchQuery])
 
   const listRef = useRef<HTMLDivElement>(null)
-  const ITEM_HEIGHT = 36
+  const ITEM_HEIGHT = 40
 
   const virtualizer = useVirtualizer({
     count: filteredConversations.length,
@@ -197,12 +198,22 @@ export function Sidebar() {
   return (
     <div
       className={cn(
-        'flex h-screen flex-col border-r bg-muted/30 transition-all duration-300',
-        sidebarCollapsed ? 'w-14' : 'w-60',
+        'flex h-screen flex-col border-r border-border/40 bg-gradient-to-b from-muted/30 via-muted/20 to-muted/10 transition-all duration-300',
+        sidebarCollapsed ? 'w-[3.5rem]' : 'w-[15.5rem]',
       )}
     >
+      {/* App branding */}
+      {!sidebarCollapsed && (
+        <div className="flex items-center gap-2.5 px-3.5 py-3.5">
+          <div className="flex size-7 items-center justify-center rounded-lg bg-primary shadow-sm">
+            <Brain className="size-4 text-primary-foreground" />
+          </div>
+          <span className="text-sm font-semibold tracking-tight">TransforPRD</span>
+        </div>
+      )}
+
       {/* Top: New Conversation button */}
-      <div className="p-2">
+      <div className={cn('px-3 pb-2.5', sidebarCollapsed && 'px-2')}>
         {sidebarCollapsed ? (
           <Tooltip>
             <TooltipTrigger
@@ -215,14 +226,14 @@ export function Sidebar() {
             <TooltipContent side="right">新建对话</TooltipContent>
           </Tooltip>
         ) : (
-          <Button variant="default" size="sm" className="w-full" onClick={handleNewConversation}>
+          <Button variant="default" size="sm" className="w-full shadow-xs transition-shadow hover:shadow-sm" onClick={handleNewConversation}>
             <Plus className="h-4 w-4 shrink-0" />
-            <span className="ml-1">新建对话</span>
+            <span className="ml-1.5">新建对话</span>
           </Button>
         )}
       </div>
 
-      <Separator />
+      <Separator className="mx-3.5 w-auto" />
 
       {/* Search */}
       {!sidebarCollapsed && conversations.length > 0 && (
@@ -247,15 +258,18 @@ export function Sidebar() {
               className="relative"
               style={{ height: `${virtualizer.getTotalSize()}px` }}
             >
-              <div className="p-2">
+              <div className="px-3 py-1.5">
                 {virtualizer.getVirtualItems().map((virtualItem) => {
                   const conv = filteredConversations[virtualItem.index]
+                  const isActive = activeConversationId === conv.id
                   return (
                     <div
                       key={conv.id}
                       className={cn(
-                        'group absolute left-2 right-2 flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-sm hover:bg-muted',
-                        activeConversationId === conv.id && 'bg-muted font-medium',
+                        'group absolute left-1 right-1 flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] transition-all duration-200',
+                        isActive
+                          ? 'bg-muted font-medium shadow-xs'
+                          : 'hover:bg-muted/60',
                       )}
                       style={{
                         top: `${virtualItem.start}px`,
@@ -282,7 +296,7 @@ export function Sidebar() {
                               {conv.tags.slice(0, 2).map((tag) => (
                                 <span
                                   key={tag}
-                                  className="rounded-full bg-blue-50 px-1.5 py-0 text-[9px] text-blue-600 dark:bg-blue-950/40 dark:text-blue-300"
+                                  className="rounded-full bg-primary/8 px-1.5 py-0 text-[9px] text-primary/70 dark:bg-primary/15 dark:text-primary/60"
                                 >
                                   {tag}
                                 </span>
@@ -383,13 +397,16 @@ export function Sidebar() {
         </div>
       )}
 
-      <Separator />
+      <div className="border-t border-border/30" />
 
       {/* Bottom: Theme + Settings + Collapse */}
-      <div className="flex items-center gap-1 p-2">
+      <div className={cn(
+        'bg-muted/20 p-1.5',
+        sidebarCollapsed ? 'flex flex-col items-center gap-1.5' : 'flex items-center gap-1',
+      )}>
         <ThemeToggle collapsed={sidebarCollapsed} />
 
-        <div className="flex-1" />
+        {!sidebarCollapsed && <div className="flex-1" />}
 
         {sidebarCollapsed ? (
           <Tooltip>
@@ -412,13 +429,22 @@ export function Sidebar() {
           </Button>
         )}
 
-        <Button variant="ghost" size="icon-sm" onClick={toggleSidebar} title={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}>
-          {sidebarCollapsed ? (
-            <PanelLeft className="h-4 w-4" />
-          ) : (
+        {sidebarCollapsed ? (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button variant="ghost" size="icon-sm" onClick={toggleSidebar} />
+              }
+            >
+              <PanelLeft className="h-4 w-4" />
+            </TooltipTrigger>
+            <TooltipContent side="right">展开侧边栏</TooltipContent>
+          </Tooltip>
+        ) : (
+          <Button variant="ghost" size="icon-sm" onClick={toggleSidebar} title="收起侧边栏">
             <PanelLeftClose className="h-4 w-4" />
-          )}
-        </Button>
+          </Button>
+        )}
       </div>
     </div>
   )

@@ -32,7 +32,7 @@ export function BackToTop({ container }: BackToTopProps) {
     <Button
       variant="outline"
       size="icon"
-      className="fixed bottom-6 right-8 z-40 size-9 rounded-full border-border/60 bg-background/80 shadow-md backdrop-blur-sm transition-all hover:bg-muted hover:shadow-lg"
+      className="fixed bottom-6 right-8 z-40 size-9 rounded-full border-border/60 bg-background/80 shadow-md backdrop-blur-sm transition-all hover:bg-muted hover:shadow-lg hover:scale-110"
       onClick={handleClick}
     >
       <ArrowUp className="h-4 w-4" />

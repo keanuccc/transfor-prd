@@ -332,8 +332,8 @@ ${latex}
   }
 
   return (
-    <div className="flex items-center gap-1 border-b px-3 py-1">
-      <Button variant="ghost" size="xs" className="gap-1" onClick={onToggleEditMode} disabled={!content}>
+    <div className="flex items-center gap-0.5 border-b border-border/30 bg-muted/20 px-4 py-1.5 backdrop-blur-sm">
+      <Button variant={editMode ? 'secondary' : 'ghost'} size="xs" className="gap-1" onClick={onToggleEditMode} disabled={!content}>
         {editMode ? (
           <>
             <Eye className="h-3 w-3" />

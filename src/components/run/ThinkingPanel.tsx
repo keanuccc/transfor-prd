@@ -13,9 +13,9 @@ export function ThinkingPanel({ content, isStreaming }: ThinkingPanelProps) {
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted">
+      <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted/60">
         <ChevronRight className={cn('h-3 w-3 transition-transform', open && 'rotate-90')} />
-        <Brain className="h-3 w-3" />
+        <Brain className="h-3 w-3 text-foreground/50" />
         <span>{isStreaming ? '思考中...' : '思考过程'}</span>
       </CollapsibleTrigger>
       <CollapsibleContent>

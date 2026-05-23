@@ -315,9 +315,9 @@ export function RunPage() {
   return (
     <div className="flex h-full">
       {/* Middle: Conversation panel */}
-      <div className="flex w-80 shrink-0 flex-col border-r">
-        <div className="flex items-center justify-between border-b px-3 py-2">
-          <h2 className="text-sm font-medium">对话</h2>
+      <div className="flex w-80 shrink-0 flex-col border-r border-border/40 bg-gradient-to-b from-muted/30 to-muted/10">
+        <div className="flex items-center justify-between border-b border-border/30 px-4 py-2.5">
+          <h2 className="text-sm font-semibold tracking-tight">对话</h2>
           {streamState.isStreaming && <StopButton onClick={stopStreaming} />}
         </div>
 
@@ -331,7 +331,7 @@ export function RunPage() {
         <ScrollArea className="min-h-0 flex-1">
           <div className="px-3">
             {messages.length === 0 && !streamState.isStreaming && (
-              <div className="flex items-center justify-center py-8 text-xs text-muted-foreground">
+              <div className="flex items-center justify-center py-12 text-xs text-muted-foreground/60">
                 准备生成...
               </div>
             )}
@@ -464,7 +464,7 @@ export function RunPage() {
                   </div>
                 )
               ) : (
-                <div className="px-8 py-6">
+                <div className="px-10 py-8">
                   {editMode ? (
                     <Textarea
                       value={editContent}
@@ -479,7 +479,7 @@ export function RunPage() {
             ) : streamState.isStreaming ? (
               <SkeletonPrd />
             ) : (
-              <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
+              <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground animate-[subtle-pulse_3s_ease-in-out_infinite]">
                 <FileText className="h-10 w-10 opacity-30" />
                 <p className="text-sm">等待生成</p>
               </div>
@@ -487,7 +487,7 @@ export function RunPage() {
           </ScrollArea>
 
           {currentContent && !editMode && !showCompare && (
-            <div className="w-44 shrink-0 overflow-auto border-l px-3 py-4">
+            <div className="w-44 shrink-0 overflow-auto border-l border-border/40 bg-muted/10 px-3 py-4">
               <TableOfContents content={currentContent} />
             </div>
           )}

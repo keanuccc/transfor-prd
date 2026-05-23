@@ -30,7 +30,7 @@ export function ProgressIndicator({ partIndex, totalParts }: ProgressIndicatorPr
   return (
     <div className="border-b px-3 py-2.5">
       <div className="mb-2 flex items-center gap-2">
-        <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-500" />
+        <Loader2 className="h-3.5 w-3.5 animate-spin text-foreground/60" />
         <span className="text-xs font-medium">
           {STAGES[stageIndex]}
         </span>
@@ -40,7 +40,7 @@ export function ProgressIndicator({ partIndex, totalParts }: ProgressIndicatorPr
       </div>
 
       <div className="h-1 overflow-hidden rounded-full bg-muted">
-        <div className="h-full animate-[indeterminate_1.5s_ease-in-out_infinite] rounded-full bg-blue-500/60" />
+        <div className="h-full animate-[indeterminate_1.5s_ease-in-out_infinite] rounded-full bg-primary/25" />
       </div>
 
       {partIndex > 1 && (

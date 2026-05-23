@@ -17,7 +17,7 @@ export function StyleSelector({ value, onChange }: StyleSelectorProps) {
           className={cn(
             'inline-flex cursor-pointer items-center rounded-full border px-2.5 py-1 text-xs font-medium transition-all active:scale-[0.97]',
             value === style.id
-              ? 'border-blue-500/40 bg-blue-50 text-blue-700 dark:border-blue-400/30 dark:bg-blue-950/40 dark:text-blue-300'
+              ? 'border-primary/30 bg-primary text-primary-foreground shadow-xs'
               : 'border-border/50 bg-muted/40 text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground',
           )}
           title={style.description}

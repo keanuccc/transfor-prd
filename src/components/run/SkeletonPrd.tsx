@@ -27,7 +27,7 @@ function SkeletonBlock() {
 
 export function SkeletonPrd() {
   return (
-    <div className="px-8 py-6">
+    <div className="px-10 py-8">
       <Skeleton className="mb-6 h-8 w-64 rounded" />
       <SkeletonBlock />
       <SkeletonBlock />

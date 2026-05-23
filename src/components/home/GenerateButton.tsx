@@ -11,7 +11,7 @@ interface GenerateButtonProps {
 export function GenerateButton({ loading, disabled, onClick, label }: GenerateButtonProps) {
   return (
     <Button
-      className="w-full"
+      className="w-full shadow-sm transition-all hover:shadow-md active:scale-[0.99]"
       size="lg"
       disabled={disabled || loading}
       onClick={onClick}

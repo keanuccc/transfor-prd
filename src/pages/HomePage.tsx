@@ -243,16 +243,20 @@ export function HomePage() {
   const isBatch = files.filter((f) => !f.error && f.content).length > 1
 
   return (
-    <div className="flex h-full items-center justify-center overflow-auto">
-      <div className="w-full max-w-xl space-y-5 px-6 py-12">
+    <div className="flex h-full justify-center overflow-hidden bg-gradient-to-b from-background via-background to-muted/20">
+      {/* Decorative background orb */}
+      <div className="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 size-[40rem] rounded-full bg-foreground/[0.02] blur-3xl" />
+      <div className="relative flex w-full max-w-xl flex-col justify-center px-6 py-4">
         <div className="text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-2xl font-bold tracking-tight">
             Markdown 思维导图转 PRD
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             上传产品功能结构思维导图，生成详细的产品功能描述文档
           </p>
         </div>
+
+        <div className="mt-4 rounded-xl border border-border/40 bg-card/80 p-5 shadow-sm backdrop-blur-sm space-y-3">
 
         <div className="space-y-1.5">
           <Label className="text-xs font-medium">
@@ -301,6 +305,8 @@ export function HomePage() {
           onClick={handleGenerate}
           label={isBatch ? `批量生成 (${files.filter((f) => !f.error).length} 个文件)` : undefined}
         />
+
+        </div>
 
         <BatchProgress items={batchItems} isRunning={batchRunning} />
 

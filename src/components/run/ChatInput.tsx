@@ -56,7 +56,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
   const hasContent = value.trim().length > 0
 
   return (
-    <div className="border-t px-3 py-3">
+    <div className="border-t border-border/30 bg-muted/10 px-3 py-3">
       <StyleSelector value={styleId} onChange={setStyleId} />
       <div className="mb-2.5 mt-2.5 flex flex-wrap gap-1.5">
         {QUICK_ACTIONS.map((action) => (

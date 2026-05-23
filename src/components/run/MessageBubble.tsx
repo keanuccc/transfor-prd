@@ -32,18 +32,18 @@ export function MessageBubble({ message }: MessageBubbleProps) {
     : message.content
 
   return (
-    <div className={cn('flex gap-2 py-2', isUser && 'justify-end')}>
+    <div className={cn('flex gap-2.5 py-2', isUser && 'justify-end')}>
       {!isUser && (
-        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10">
-          <Bot className="h-3.5 w-3.5 text-primary" />
+        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-muted ring-1 ring-border/40">
+          <Bot className="h-3.5 w-3.5 text-foreground/60" />
         </div>
       )}
       <div
         className={cn(
-          'max-w-[85%] rounded-lg px-3 py-2 text-xs leading-relaxed',
+          'max-w-[85%] rounded-xl px-3.5 py-2.5 text-xs leading-relaxed',
           isUser
-            ? 'bg-primary text-primary-foreground'
-            : 'bg-muted text-muted-foreground',
+            ? 'bg-primary text-primary-foreground shadow-xs'
+            : 'bg-muted/70 text-foreground/80 ring-1 ring-border/40',
         )}
       >
         <p className="whitespace-pre-wrap">{displayContent || '...'}</p>
@@ -51,11 +51,11 @@ export function MessageBubble({ message }: MessageBubbleProps) {
           <p className="mt-1 text-xs text-destructive">{message.errorMessage}</p>
         )}
         {message.status === 'streaming' && !isUser && (
-          <span className="inline-block h-3 w-0.5 animate-pulse bg-current" />
+          <span className="ml-0.5 inline-block h-3 w-0.5 animate-pulse rounded-full bg-foreground/50" />
         )}
       </div>
       {isUser && (
-        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary">
+        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary shadow-xs">
           <User className="h-3.5 w-3.5 text-primary-foreground" />
         </div>
       )}

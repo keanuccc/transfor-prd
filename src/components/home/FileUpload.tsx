@@ -126,11 +126,11 @@ export function FileUpload({ files, multiple = false, onFilesChange }: FileUploa
 
       <div
         className={cn(
-          'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-6 transition-colors',
-          files.length > 0 ? 'py-3' : 'py-8',
+          'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-6 transition-all duration-200',
+          files.length > 0 ? 'py-3' : 'py-4',
           isDragging
-            ? 'border-primary bg-primary/5'
-            : 'border-muted-foreground/25 hover:border-muted-foreground/40 hover:bg-muted/10',
+            ? 'border-primary bg-primary/5 scale-[1.01]'
+            : 'border-muted-foreground/20 hover:border-muted-foreground/35 hover:bg-muted/20',
         )}
         onDragEnter={onDragEnter}
         onDragOver={onDragOver}
@@ -140,7 +140,7 @@ export function FileUpload({ files, multiple = false, onFilesChange }: FileUploa
       >
         {files.length === 0 ? (
           <>
-            <Upload className={cn('h-8 w-8', isDragging ? 'text-primary' : 'text-muted-foreground/50')} />
+            <Upload className={cn('h-8 w-8 transition-colors', isDragging ? 'text-primary' : 'text-muted-foreground/40')} />
             <p className="text-sm text-muted-foreground">
               拖拽 Markdown 文件到此处，或点击上传
             </p>
