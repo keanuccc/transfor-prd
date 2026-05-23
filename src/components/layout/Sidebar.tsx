@@ -412,20 +412,13 @@ export function Sidebar() {
           </Button>
         )}
 
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button variant="ghost" size="icon-sm" onClick={toggleSidebar} />
-            }
-          >
-            {sidebarCollapsed ? (
-              <PanelLeft className="h-4 w-4" />
-            ) : (
-              <PanelLeftClose className="h-4 w-4" />
-            )}
-          </TooltipTrigger>
-          {sidebarCollapsed && <TooltipContent side="right">展开侧边栏</TooltipContent>}
-        </Tooltip>
+        <Button variant="ghost" size="icon-sm" onClick={toggleSidebar} title={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}>
+          {sidebarCollapsed ? (
+            <PanelLeft className="h-4 w-4" />
+          ) : (
+            <PanelLeftClose className="h-4 w-4" />
+          )}
+        </Button>
       </div>
     </div>
   )

@@ -91,8 +91,14 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
   },
 
   addMessage: async (message) => {
+    // Guard: skip if message already exists (prevents race with concurrent loadMessages)
+    if (get().messages.some((m) => m.id === message.id)) return
     await db.messages.add(message)
-    set((s) => ({ messages: [...s.messages, message] }))
+    set((s) => {
+      // Double-check inside set to handle in-flight races
+      if (s.messages.some((m) => m.id === message.id)) return s
+      return { messages: [...s.messages, message] }
+    })
   },
 
   updateMessage: async (id, updates) => {

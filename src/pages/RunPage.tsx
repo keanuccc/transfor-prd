@@ -24,6 +24,8 @@ import { SkeletonPrd } from '@/components/run/SkeletonPrd'
 import { TableOfContents } from '@/components/run/TableOfContents'
 import { DiffView } from '@/components/run/DiffView'
 import { BackToTop } from '@/components/run/BackToTop'
+import { ScorePanel } from '@/components/run/ScorePanel'
+import { parseScores, type ReviewScores } from '@/lib/reviewScoring'
 import { useConversationStore } from '@/stores/conversationStore'
 import { useLLMStream } from '@/hooks/useLLMStream'
 import { useAppStore } from '@/stores/appStore'
@@ -36,7 +38,7 @@ export function RunPage() {
   const { id } = useParams<{ id: string }>()
   const { setActiveConversation, messages, activeConversationId, conversations, updateMessage } =
     useConversationStore()
-  const { streamState, stopStreaming, continueGeneration, startGeneration, sendMessage, refine, review, startComparison } =
+  const { streamState, stopStreaming, continueGeneration, startGeneration, sendMessage, refine, review, scoreReview, estimateTimeline, reverseToMindMap, startComparison } =
     useLLMStream()
   const { setSidebarCollapsed } = useAppStore()
   const { getConfigById, configs } = useLLMStore()
@@ -47,16 +49,31 @@ export function RunPage() {
   const [compareLoading, setCompareLoading] = useState(false)
   const [showCompare, setShowCompare] = useState(false)
   const [compareDiffMode, setCompareDiffMode] = useState(false)
+  const [scoreReviewResult, setScoreReviewResult] = useState<ReviewScores | null>(null)
+  const [scoreReviewLoading, setScoreReviewLoading] = useState(false)
+  const [reverseMindMapPending, setReverseMindMapPending] = useState(false)
   const prdViewportRef = useRef<HTMLDivElement>(null)
   const enableCompletionSound = useSettingsStore((s) => s.enableCompletionSound)
 
+  const collapsedSnapshot = useRef(false)
+
   useEffect(() => {
-    setSidebarCollapsed(true)
-    if (id) {
+    // Only set active if not already set (avoids redundant loadMessages + race with streaming)
+    if (id && activeConversationId !== id) {
       setActiveConversation(id)
     }
-    return () => setSidebarCollapsed(false)
-  }, [id, setActiveConversation, setSidebarCollapsed])
+  }, [id, activeConversationId, setActiveConversation])
+
+  useEffect(() => {
+    // Auto-collapse sidebar on mount, restore on unmount
+    if (!collapsedSnapshot.current) {
+      collapsedSnapshot.current = true
+      setSidebarCollapsed(true)
+    }
+    return () => {
+      setSidebarCollapsed(false)
+    }
+  }, [setSidebarCollapsed])
 
   const conversation = conversations.find((c) => c.id === id)
   const modelConfig = conversation ? getConfigById(conversation.llmConfigId) : undefined
@@ -129,6 +146,85 @@ export function RunPage() {
       toast.error(err instanceof Error ? err.message : '审阅失败')
     })
   }, [review, streamState.isStreaming])
+
+  const handleScoreReview = useCallback(() => {
+    if (streamState.isStreaming) {
+      toast.error('请等待当前生成完成后再执行评审')
+      return
+    }
+    setScoreReviewLoading(true)
+    setScoreReviewResult(null)
+    scoreReview().catch((err) => {
+      toast.error(err instanceof Error ? err.message : '评审失败')
+      setScoreReviewLoading(false)
+    })
+  }, [scoreReview, streamState.isStreaming])
+
+  // Auto-parse scores when score review stream completes
+  const prevScoreStreaming = useRef(false)
+  useEffect(() => {
+    if (scoreReviewLoading) {
+      if (prevScoreStreaming.current && !streamState.isStreaming) {
+        // Stream just finished
+        const latestMsg = [...messages].reverse().find((m) => m.role === 'assistant')
+        if (latestMsg?.content) {
+          const parsed = parseScores(latestMsg.content)
+          setScoreReviewResult(parsed)
+        }
+        setScoreReviewLoading(false)
+      }
+      prevScoreStreaming.current = streamState.isStreaming
+    } else {
+      prevScoreStreaming.current = false
+    }
+  }, [streamState.isStreaming, scoreReviewLoading, messages])
+
+  const handleEstimateTimeline = useCallback(() => {
+    if (streamState.isStreaming) {
+      toast.error('请等待当前生成完成后再执行预估')
+      return
+    }
+    estimateTimeline().catch((err) => {
+      toast.error(err instanceof Error ? err.message : '预估失败')
+    })
+  }, [estimateTimeline, streamState.isStreaming])
+
+  const handleReverseToMindMap = useCallback(() => {
+    if (streamState.isStreaming) {
+      toast.error('请等待当前生成完成后再执行')
+      return
+    }
+    setReverseMindMapPending(true)
+    reverseToMindMap().catch((err) => {
+      toast.error(err instanceof Error ? err.message : '反向生成失败')
+      setReverseMindMapPending(false)
+    })
+  }, [reverseToMindMap, streamState.isStreaming])
+
+  // Auto-download mind map when reverse generation completes
+  const prevReverseStreaming = useRef(false)
+  useEffect(() => {
+    if (reverseMindMapPending) {
+      if (prevReverseStreaming.current && !streamState.isStreaming) {
+        const latestMsg = [...messages].reverse().find((m) => m.role === 'assistant')
+        if (latestMsg?.content) {
+          const title = conversation?.title || '思维导图'
+          const blob = new Blob([latestMsg.content], { type: 'text/markdown;charset=utf-8' })
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = `${title}-思维导图.md`
+          a.click()
+          URL.revokeObjectURL(url)
+          toast.success('思维导图已下载')
+        }
+        setReverseMindMapPending(false)
+      }
+      prevReverseStreaming.current = streamState.isStreaming
+    } else {
+      prevReverseStreaming.current = false
+    }
+  }, [streamState.isStreaming, reverseMindMapPending, messages, conversation?.title])
 
   const handleCompare = useCallback(async () => {
     if (streamState.isStreaming) {
@@ -271,6 +367,9 @@ export function RunPage() {
           onToggleEditMode={handleToggleEditMode}
           onRefine={handleRefine}
           onReview={handleReview}
+          onScoreReview={handleScoreReview}
+          onEstimateTimeline={handleEstimateTimeline}
+          onReverseToMindMap={handleReverseToMindMap}
         />
 
         {/* Comparison bar */}
@@ -393,6 +492,8 @@ export function RunPage() {
             </div>
           )}
         </div>
+
+        <ScorePanel scores={scoreReviewResult} loading={scoreReviewLoading} />
 
         <BackToTop container={prdViewportRef.current} />
       </div>

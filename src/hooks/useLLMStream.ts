@@ -208,6 +208,10 @@ export function useLLMStream() {
 
   const startGeneration = useCallback(
     async (conversationId: string, configId: string, fileContent: string, userInput: string, templateId: string) => {
+      // Guard against concurrent generation — let RunPage's auto-start be the sole entry point
+      const currentStream = useConversationStore.getState().streamState
+      if (currentStream.abortController || currentStream.isStreaming) return
+
       const config = getConfigById(configId)
       if (!config) throw new Error('未找到模型配置')
 
@@ -485,6 +489,227 @@ ${lastAssistantMsg.content}
     )
   }, [activeConversationId, messages, systemPrompt, streamState, getConfigById, executeStream])
 
+  const scoreReview = useCallback(async () => {
+    if (!activeConversationId || streamState.abortController) return
+
+    const conv = useConversationStore.getState().conversations.find(
+      (c) => c.id === activeConversationId,
+    )
+    if (!conv) return
+    const config = getConfigById(conv.llmConfigId)
+    if (!config) return
+
+    const template = getTemplateById(conv.templateId)
+    const prompt = template?.systemPrompt || systemPrompt
+
+    const lastAssistantMsg = [...messages].reverse().find((m) => m.role === 'assistant')
+    if (!lastAssistantMsg || !lastAssistantMsg.content) return
+
+    accumulateRef.current = ''
+
+    const scorePrompt = `请作为资深产品评审专家，对以下文档进行量化打分。
+
+请从以下 4 个维度评分（1-10 分，整数）：
+1. **completeness**（完整性）— 是否覆盖了所有必要的功能模块和场景
+2. **executability**（可执行性）— 描述是否足够具体，能够直接指导开发
+3. **clarity**（清晰度）— 逻辑是否清晰，表达是否准确无歧义
+4. **technicalFeasibility**（技术可行性）— 技术方案是否合理
+
+请严格以以下 JSON 格式输出评分结果（放在 \`\`\`json 代码块中）：
+{
+  "completeness": 8,
+  "executability": 7,
+  "clarity": 9,
+  "technicalFeasibility": 8,
+  "summary": "一句话总体评价"
+}
+
+<document>
+${lastAssistantMsg.content}
+</document>`
+
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      conversationId: activeConversationId,
+      role: 'user',
+      content: scorePrompt,
+      status: 'completed',
+      partIndex: 0,
+      totalParts: null,
+      thinkingContent: null,
+      errorMessage: null,
+      createdAt: Date.now(),
+    }
+
+    const chatMessages: ChatMessage[] = [
+      { role: 'system', content: prompt },
+    ]
+    for (const msg of messages) {
+      if (msg.role === 'user' || msg.role === 'assistant') {
+        chatMessages.push({ role: msg.role, content: msg.content })
+      }
+    }
+    chatMessages.push({ role: 'user', content: scorePrompt })
+
+    await executeStream(
+      activeConversationId,
+      config,
+      userMessage,
+      makeAssistantMsg(activeConversationId),
+      chatMessages,
+      new AbortController(),
+    )
+  }, [activeConversationId, messages, systemPrompt, streamState, getConfigById, executeStream])
+
+  const estimateTimeline = useCallback(async () => {
+    if (!activeConversationId || streamState.abortController) return
+
+    const conv = useConversationStore.getState().conversations.find(
+      (c) => c.id === activeConversationId,
+    )
+    if (!conv) return
+    const config = getConfigById(conv.llmConfigId)
+    if (!config) return
+
+    const template = getTemplateById(conv.templateId)
+    const prompt = template?.systemPrompt || systemPrompt
+
+    const lastAssistantMsg = [...messages].reverse().find((m) => m.role === 'assistant')
+    if (!lastAssistantMsg || !lastAssistantMsg.content) return
+
+    accumulateRef.current = ''
+
+    const timelinePrompt = `请作为技术项目经理，对以下产品文档进行开发时间轴估算。
+
+请：
+1. 列出各个功能模块
+2. 估算每个模块的开发人天（person-days）
+3. 给出建议的开发阶段和依赖关系
+4. 输出一个 Mermaid Gantt 图（放在 \`\`\`mermaid 代码块中），展示各模块的时间安排
+
+Gantt 图格式示例：
+\`\`\`mermaid
+gantt
+    title 开发时间轴
+    dateFormat  YYYY-MM-DD
+    section 模块A
+    任务1           :a1, 2025-01-01, 5d
+    任务2           :a2, after a1, 3d
+    section 模块B
+    任务3           :b1, 2025-01-01, 7d
+\`\`\`
+
+<document>
+${lastAssistantMsg.content}
+</document>`
+
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      conversationId: activeConversationId,
+      role: 'user',
+      content: timelinePrompt,
+      status: 'completed',
+      partIndex: 0,
+      totalParts: null,
+      thinkingContent: null,
+      errorMessage: null,
+      createdAt: Date.now(),
+    }
+
+    const chatMessages: ChatMessage[] = [
+      { role: 'system', content: prompt },
+    ]
+    for (const msg of messages) {
+      if (msg.role === 'user' || msg.role === 'assistant') {
+        chatMessages.push({ role: msg.role, content: msg.content })
+      }
+    }
+    chatMessages.push({ role: 'user', content: timelinePrompt })
+
+    await executeStream(
+      activeConversationId,
+      config,
+      userMessage,
+      makeAssistantMsg(activeConversationId),
+      chatMessages,
+      new AbortController(),
+    )
+  }, [activeConversationId, messages, systemPrompt, streamState, getConfigById, executeStream])
+
+  const reverseToMindMap = useCallback(async () => {
+    if (!activeConversationId || streamState.abortController) return
+
+    const conv = useConversationStore.getState().conversations.find(
+      (c) => c.id === activeConversationId,
+    )
+    if (!conv) return
+    const config = getConfigById(conv.llmConfigId)
+    if (!config) return
+
+    const lastAssistantMsg = [...messages].reverse().find((m) => m.role === 'assistant')
+    if (!lastAssistantMsg || !lastAssistantMsg.content) return
+
+    accumulateRef.current = ''
+
+    const reversePrompt = `请将以下产品需求文档（PRD）逆向解析为思维导图格式（Markdown 缩进列表）。
+
+要求：
+1. 提取文档的层级结构，还原为模块→功能组→功能点的树形关系
+2. 使用 - 开头的缩进列表格式（每层缩进 2 个空格）
+3. 保持简洁，每个节点一行描述
+
+输出格式示例：
+- 产品名称
+  - 功能模块一
+    - 功能组A
+      - 功能点1
+      - 功能点2
+    - 功能组B
+      - 功能点3
+  - 功能模块二
+    - 功能组C
+      - 功能点4
+
+请直接输出思维导图 Markdown 内容，不要包含其他说明文字。
+
+<document>
+${lastAssistantMsg.content}
+</document>`
+
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      conversationId: activeConversationId,
+      role: 'user',
+      content: reversePrompt,
+      status: 'completed',
+      partIndex: 0,
+      totalParts: null,
+      thinkingContent: null,
+      errorMessage: null,
+      createdAt: Date.now(),
+    }
+
+    const chatMessages: ChatMessage[] = []
+    const template = getTemplateById(conv.templateId)
+    const prompt = template?.systemPrompt || systemPrompt
+    chatMessages.push({ role: 'system', content: prompt })
+    for (const msg of messages) {
+      if (msg.role === 'user' || msg.role === 'assistant') {
+        chatMessages.push({ role: msg.role, content: msg.content })
+      }
+    }
+    chatMessages.push({ role: 'user', content: reversePrompt })
+
+    await executeStream(
+      activeConversationId,
+      config,
+      userMessage,
+      makeAssistantMsg(activeConversationId),
+      chatMessages,
+      new AbortController(),
+    )
+  }, [activeConversationId, messages, systemPrompt, streamState, getConfigById, executeStream])
+
   const startComparison = useCallback(async (comparisonConfigId: string) => {
     if (!activeConversationId || streamState.abortController) return
 
@@ -541,6 +766,9 @@ ${lastAssistantMsg.content}
     continueGeneration,
     refine,
     review,
+    scoreReview,
+    estimateTimeline,
+    reverseToMindMap,
     startComparison,
     stopStreaming,
     streamState,

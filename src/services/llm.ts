@@ -90,3 +90,31 @@ export async function* streamChatCompletion(
 
   return { content: accumulated, finishReason, thinkingContent }
 }
+
+export async function sendChatCompletion(
+  config: LLMConfig,
+  messages: ChatMessage[],
+): Promise<string> {
+  const url = `${config.baseUrl.replace(/\/+$/, '')}/chat/completions`
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${config.apiKey}`,
+    },
+    body: JSON.stringify({
+      model: config.modelName,
+      messages,
+      stream: false,
+    }),
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Unknown error')
+    throw new Error(`API request failed (${response.status}): ${errorText}`)
+  }
+
+  const data = await response.json()
+  return data.choices?.[0]?.message?.content || ''
+}

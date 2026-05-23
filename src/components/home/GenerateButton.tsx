@@ -5,9 +5,10 @@ interface GenerateButtonProps {
   loading: boolean
   disabled: boolean
   onClick: () => void
+  label?: string
 }
 
-export function GenerateButton({ loading, disabled, onClick }: GenerateButtonProps) {
+export function GenerateButton({ loading, disabled, onClick, label }: GenerateButtonProps) {
   return (
     <Button
       className="w-full"
@@ -20,7 +21,7 @@ export function GenerateButton({ loading, disabled, onClick }: GenerateButtonPro
       ) : (
         <Sparkles className="mr-1.5 h-4 w-4" />
       )}
-      {loading ? '生成中...' : '生成功能描述'}
+      {loading ? '生成中...' : (label || '生成功能描述')}
     </Button>
   )
 }

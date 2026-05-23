@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Copy, Download, Eye, Pencil, Sparkles, FileText, FileCode, Moon, ChevronDown, ClipboardCheck } from 'lucide-react'
+import { Copy, Download, Eye, Pencil, Sparkles, FileText, FileCode, Moon, ChevronDown, ClipboardCheck, BarChart3, Clock, GitFork } from 'lucide-react'
 import { marked } from 'marked'
 import { Button } from '@/components/ui/button'
 import {
@@ -19,6 +19,9 @@ interface EditorToolbarProps {
   onToggleEditMode: () => void
   onRefine: () => void
   onReview: () => void
+  onScoreReview: () => void
+  onEstimateTimeline: () => void
+  onReverseToMindMap: () => void
 }
 
 marked.setOptions({ gfm: true, breaks: false })
@@ -147,7 +150,7 @@ function convertToLatex(md: string): string {
   return result
 }
 
-export function EditorToolbar({ content, fileName, editMode, isStreaming, onToggleEditMode, onRefine, onReview }: EditorToolbarProps) {
+export function EditorToolbar({ content, fileName, editMode, isStreaming, onToggleEditMode, onRefine, onReview, onScoreReview, onEstimateTimeline, onReverseToMindMap }: EditorToolbarProps) {
   const renderedHtml = useMemo(() => {
     if (!content) return ''
     try {
@@ -351,6 +354,18 @@ ${latex}
       <Button variant="ghost" size="xs" className="gap-1" onClick={onReview} disabled={!content || isStreaming}>
         <ClipboardCheck className="h-3 w-3" />
         AI 审阅
+      </Button>
+      <Button variant="ghost" size="xs" className="gap-1" onClick={onScoreReview} disabled={!content || isStreaming}>
+        <BarChart3 className="h-3 w-3" />
+        评审打分
+      </Button>
+      <Button variant="ghost" size="xs" className="gap-1" onClick={onEstimateTimeline} disabled={!content || isStreaming}>
+        <Clock className="h-3 w-3" />
+        时间轴预估
+      </Button>
+      <Button variant="ghost" size="xs" className="gap-1" onClick={onReverseToMindMap} disabled={!content || isStreaming}>
+        <GitFork className="h-3 w-3" />
+        反向生成思维导图
       </Button>
 
       <DropdownMenu>
