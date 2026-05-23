@@ -3,6 +3,7 @@ import { router } from '@/router'
 import { useEffect } from 'react'
 import { useConversationStore } from '@/stores/conversationStore'
 import { useAppStore } from '@/stores/appStore'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 export default function App() {
   const loadConversations = useConversationStore((s) => s.loadConversations)
@@ -30,5 +31,9 @@ export default function App() {
     }
   }, [theme])
 
-  return <RouterProvider router={router} />
+  return (
+    <ErrorBoundary>
+      <RouterProvider router={router} />
+    </ErrorBoundary>
+  )
 }
