@@ -87,6 +87,7 @@ export function RunPage() {
     }
     return () => {
       setSidebarCollapsed(false)
+      collapsedSnapshot.current = false
     }
   }, [setSidebarCollapsed])
 
@@ -194,7 +195,7 @@ export function RunPage() {
       if (prevScoreStreaming.current && !streamState.isStreaming) {
         // Stream just finished
         const latestMsg = [...messages].reverse().find((m) => m.role === 'assistant')
-        if (latestMsg?.content) {
+        if (latestMsg?.content && latestMsg.status !== 'error') {
           const parsed = parseScores(latestMsg.content)
           setScoreReviewResult(parsed)
         }
@@ -255,7 +256,7 @@ export function RunPage() {
     if (reverseMindMapPending) {
       if (prevReverseStreaming.current && !streamState.isStreaming) {
         const latestMsg = [...messages].reverse().find((m) => m.role === 'assistant')
-        if (latestMsg?.content) {
+        if (latestMsg?.content && latestMsg.status !== 'error') {
           const title = conversation?.title || '思维导图'
           const blob = new Blob([latestMsg.content], { type: 'text/markdown;charset=utf-8' })
           const url = URL.createObjectURL(blob)
@@ -299,7 +300,7 @@ export function RunPage() {
       toast.error('请等待当前生成完成后再开始竞赛')
       return
     }
-    if (competitionModelIds.length < 2) {
+    if (competitionModelIds.filter(Boolean).length < 2) {
       toast.error('请至少选择 2 个竞赛模型')
       return
     }
@@ -368,18 +369,16 @@ export function RunPage() {
   }, [configs, conversation])
 
   const handleToggleEditMode = useCallback(() => {
-    setEditMode((prev) => {
-      if (!prev && assistantMessage) {
-        setEditContent(assistantMessage.content)
-      } else if (prev && assistantMessage && editContent !== assistantMessage.content) {
-        updateMessage(assistantMessage.id, { content: editContent })
-        if (id && assistantMessage.content) {
-          createSnapshot(id, assistantMessage.content, `编辑前自动保存 - ${new Date().toLocaleString('zh-CN')}`)
-        }
+    if (!editMode && assistantMessage) {
+      setEditContent(assistantMessage.content)
+    } else if (editMode && assistantMessage && editContent !== assistantMessage.content) {
+      updateMessage(assistantMessage.id, { content: editContent })
+      if (id && assistantMessage.content) {
+        createSnapshot(id, assistantMessage.content, `编辑前自动保存 - ${new Date().toLocaleString('zh-CN')}`)
       }
-      return !prev
-    })
-  }, [assistantMessage, editContent, updateMessage, id, createSnapshot])
+    }
+    setEditMode((prev) => !prev)
+  }, [editMode, assistantMessage, editContent, updateMessage, id, createSnapshot])
 
   const handleDownloadMd = useCallback(() => {
     const content = assistantMessage?.content

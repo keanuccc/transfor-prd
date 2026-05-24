@@ -859,7 +859,7 @@ ${lastAssistantMsg.content}
   }, [activeConversationId, messages, systemPrompt, streamState, getConfigById, executeStream])
 
   const startCompetition = useCallback(async (competitorConfigIds: string[]) => {
-    if (!activeConversationId || streamState.abortController) return
+    if (!activeConversationId || streamState.abortController || streamState.isStreaming) return
 
     const conv = useConversationStore.getState().conversations.find(
       (c) => c.id === activeConversationId,
@@ -879,6 +879,9 @@ ${lastAssistantMsg.content}
       if (!config) throw new Error(`未找到模型配置: ${configId}`)
       return config
     })
+
+    const abortController = new AbortController()
+    setStreamState({ isStreaming: true, abortController })
 
     const runOne = async (config: LLMConfig, label: string) => {
       const userMessage: Message = {
@@ -907,18 +910,26 @@ ${lastAssistantMsg.content}
             { role: 'user', content: firstUserMsg.content },
           ],
           assistantMessage.id,
-          new AbortController().signal,
+          abortController.signal,
           false,
         )
-      } catch {
-        await updateMessage(assistantMessage.id, { status: 'error', errorMessage: `${label} 生成失败` })
+      } catch (err) {
+        if (abortController.signal.aborted) {
+          await updateMessage(assistantMessage.id, { status: 'stopped' })
+        } else {
+          await updateMessage(assistantMessage.id, { status: 'error', errorMessage: `${label} 生成失败` })
+        }
       }
     }
 
-    await Promise.allSettled(
-      competitors.map((c) => runOne(c, c.modelName)),
-    )
-  }, [activeConversationId, messages, systemPrompt, streamState, getConfigById, addMessage, updateMessage, streamWithAutoContinue])
+    try {
+      await Promise.allSettled(
+        competitors.map((c) => runOne(c, c.modelName)),
+      )
+    } finally {
+      setStreamState({ isStreaming: false, abortController: null })
+    }
+  }, [activeConversationId, messages, systemPrompt, streamState, getConfigById, addMessage, updateMessage, setStreamState, streamWithAutoContinue])
 
   return {
     startGeneration,

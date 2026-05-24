@@ -154,7 +154,15 @@ function TreeNodeItem({
 
 export function MindMapTree({ content, selectedPaths, onSelectedPathsChange }: MindMapTreeProps) {
   const tree = useMemo(() => parseTree(content), [content])
-  const [selectAll, setSelectAll] = useState(false)
+
+  const isAllSelected = useMemo(() => {
+    const allPaths = collectAllPaths(tree)
+    if (allPaths.size === 0) return false
+    for (const path of allPaths) {
+      if (!selectedPaths.has(path)) return false
+    }
+    return true
+  }, [selectedPaths, tree])
 
   const handleToggle = (path: string, checked: boolean) => {
     const next = new Set(selectedPaths)
@@ -167,12 +175,10 @@ export function MindMapTree({ content, selectedPaths, onSelectedPathsChange }: M
   }
 
   const handleSelectAll = () => {
-    if (selectAll) {
+    if (isAllSelected) {
       onSelectedPathsChange(new Set())
-      setSelectAll(false)
     } else {
       onSelectedPathsChange(collectAllPaths(tree))
-      setSelectAll(true)
     }
   }
 
@@ -188,7 +194,7 @@ export function MindMapTree({ content, selectedPaths, onSelectedPathsChange }: M
           onClick={handleSelectAll}
           className="text-[11px] text-primary hover:underline"
         >
-          {selectAll ? '取消全选' : '全选'}
+          {isAllSelected ? '取消全选' : '全选'}
         </button>
       </div>
       <div className="max-h-[200px] overflow-auto">

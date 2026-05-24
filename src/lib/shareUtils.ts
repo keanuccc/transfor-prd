@@ -63,6 +63,5 @@ export async function decryptFromShare(encoded: string, password: string): Promi
 }
 
 export function generateShareUrl(encodedPayload: string): string {
-  const base = window.location.origin + window.location.pathname.replace(/\/$/, '')
-  return `${base}/share#${encodedPayload}`
+  return `${window.location.origin}/share#${encodedPayload}`
 }

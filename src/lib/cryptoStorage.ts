@@ -20,8 +20,10 @@ async function getCryptoKey(): Promise<CryptoKey> {
   const stored = await new Promise<ArrayBuffer | undefined>((resolve) => {
     const tx = db.transaction(STORE_NAME, 'readonly')
     const req = tx.objectStore(STORE_NAME).get(KEY_ID)
-    tx.oncomplete = () => resolve(req.result)
-    db.close()
+    tx.oncomplete = () => {
+      resolve(req.result)
+      db.close()
+    }
   })
 
   if (stored) {
