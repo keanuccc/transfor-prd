@@ -41,7 +41,7 @@ export const useAppStore = create<AppState>()(
   ),
 )
 
-function applyTheme(theme: Theme) {
+export function applyTheme(theme: Theme) {
   const root = document.documentElement
   const isDark =
     theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)

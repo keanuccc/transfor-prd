@@ -380,78 +380,70 @@ export function useLLMStream() {
     }
   }, [activeConversationId, messages, systemPrompt, autoContinue, streamState, updateMessage, setStreamState, getConfigById, streamWithAutoContinue])
 
-  const refine = useCallback(async () => {
-    if (!activeConversationId || streamState.abortController) return
+  // Shared helper for actions that send a prompt based on the last assistant message
+  const streamAction = useCallback(
+    async (buildPrompt: (lastContent: string) => string) => {
+      if (!activeConversationId || streamState.abortController) return
 
-    const conv = useConversationStore.getState().conversations.find(
-      (c) => c.id === activeConversationId,
-    )
-    if (!conv) return
-    const config = getConfigById(conv.llmConfigId)
-    if (!config) return
+      const conv = useConversationStore.getState().conversations.find(
+        (c) => c.id === activeConversationId,
+      )
+      if (!conv) return
+      const config = getConfigById(conv.llmConfigId)
+      if (!config) return
 
-    const template = getTemplateById(conv.templateId)
-    const prompt = enhanceSystemPrompt(template?.systemPrompt || systemPrompt)
+      const template = getTemplateById(conv.templateId)
+      const prompt = enhanceSystemPrompt(template?.systemPrompt || systemPrompt)
 
-    const lastAssistantMsg = [...messages].reverse().find((m) => m.role === 'assistant')
-    if (!lastAssistantMsg || !lastAssistantMsg.content) return
+      const lastAssistantMsg = [...messages].reverse().find((m) => m.role === 'assistant')
+      if (!lastAssistantMsg || !lastAssistantMsg.content) return
 
-    accumulateRef.current = ''
+      accumulateRef.current = ''
 
-    const refinePrompt = `请对以下产品文档进行精修优化：补充遗漏的细节，修正不合理的描述，增强专业性和可读性。将优化后的完整文档输出。\n\n<document>\n${lastAssistantMsg.content}\n</document>`
+      const userContent = buildPrompt(lastAssistantMsg.content)
 
-    const userMessage: Message = {
-      id: crypto.randomUUID(),
-      conversationId: activeConversationId,
-      role: 'user',
-      content: refinePrompt,
-      status: 'completed',
-      partIndex: 0,
-      totalParts: null,
-      thinkingContent: null,
-      errorMessage: null,
-      createdAt: Date.now(),
-    }
-
-    const chatMessages: ChatMessage[] = [
-      { role: 'system', content: prompt },
-    ]
-    for (const msg of messages) {
-      if (msg.role === 'user' || msg.role === 'assistant') {
-        chatMessages.push({ role: msg.role, content: msg.content })
+      const userMessage: Message = {
+        id: crypto.randomUUID(),
+        conversationId: activeConversationId,
+        role: 'user',
+        content: userContent,
+        status: 'completed',
+        partIndex: 0,
+        totalParts: null,
+        thinkingContent: null,
+        errorMessage: null,
+        createdAt: Date.now(),
       }
-    }
-    chatMessages.push({ role: 'user', content: refinePrompt })
 
-    await executeStream(
-      activeConversationId,
-      config,
-      userMessage,
-      makeAssistantMsg(activeConversationId),
-      chatMessages,
-      new AbortController(),
-    )
-  }, [activeConversationId, messages, systemPrompt, streamState, getConfigById, executeStream])
+      const chatMessages: ChatMessage[] = [
+        { role: 'system', content: prompt },
+      ]
+      for (const msg of messages) {
+        if (msg.role === 'user' || msg.role === 'assistant') {
+          chatMessages.push({ role: msg.role, content: msg.content })
+        }
+      }
+      chatMessages.push({ role: 'user', content: userContent })
 
-  const review = useCallback(async () => {
-    if (!activeConversationId || streamState.abortController) return
+      await executeStream(
+        activeConversationId,
+        config,
+        userMessage,
+        makeAssistantMsg(activeConversationId),
+        chatMessages,
+        new AbortController(),
+      )
+    },
+    [activeConversationId, messages, systemPrompt, streamState, getConfigById, executeStream],
+  )
 
-    const conv = useConversationStore.getState().conversations.find(
-      (c) => c.id === activeConversationId,
-    )
-    if (!conv) return
-    const config = getConfigById(conv.llmConfigId)
-    if (!config) return
+  const refine = useCallback(
+    () => streamAction((content) => `请对以下产品文档进行精修优化：补充遗漏的细节，修正不合理的描述，增强专业性和可读性。将优化后的完整文档输出。\n\n<document>\n${content}\n</document>`),
+    [streamAction],
+  )
 
-    const template = getTemplateById(conv.templateId)
-    const prompt = enhanceSystemPrompt(template?.systemPrompt || systemPrompt)
-
-    const lastAssistantMsg = [...messages].reverse().find((m) => m.role === 'assistant')
-    if (!lastAssistantMsg || !lastAssistantMsg.content) return
-
-    accumulateRef.current = ''
-
-    const reviewPrompt = `请作为资深产品评审专家，对以下文档进行专业审阅。
+  const review = useCallback(
+    () => streamAction((content) => `请作为资深产品评审专家，对以下文档进行专业审阅。
 
 从以下 4 个维度打分（1-10 分）并给出详细意见：
 1. **完整性** — 是否覆盖了所有必要的功能模块和场景
@@ -467,61 +459,13 @@ export function useLLMStream() {
 请以清晰的评审报告格式输出，包含总分、各维度评分、详细意见和改进建议。
 
 <document>
-${lastAssistantMsg.content}
-</document>`
+${content}
+</document>`),
+    [streamAction],
+  )
 
-    const userMessage: Message = {
-      id: crypto.randomUUID(),
-      conversationId: activeConversationId,
-      role: 'user',
-      content: reviewPrompt,
-      status: 'completed',
-      partIndex: 0,
-      totalParts: null,
-      thinkingContent: null,
-      errorMessage: null,
-      createdAt: Date.now(),
-    }
-
-    const chatMessages: ChatMessage[] = [
-      { role: 'system', content: prompt },
-    ]
-    for (const msg of messages) {
-      if (msg.role === 'user' || msg.role === 'assistant') {
-        chatMessages.push({ role: msg.role, content: msg.content })
-      }
-    }
-    chatMessages.push({ role: 'user', content: reviewPrompt })
-
-    await executeStream(
-      activeConversationId,
-      config,
-      userMessage,
-      makeAssistantMsg(activeConversationId),
-      chatMessages,
-      new AbortController(),
-    )
-  }, [activeConversationId, messages, systemPrompt, streamState, getConfigById, executeStream])
-
-  const scoreReview = useCallback(async () => {
-    if (!activeConversationId || streamState.abortController) return
-
-    const conv = useConversationStore.getState().conversations.find(
-      (c) => c.id === activeConversationId,
-    )
-    if (!conv) return
-    const config = getConfigById(conv.llmConfigId)
-    if (!config) return
-
-    const template = getTemplateById(conv.templateId)
-    const prompt = enhanceSystemPrompt(template?.systemPrompt || systemPrompt)
-
-    const lastAssistantMsg = [...messages].reverse().find((m) => m.role === 'assistant')
-    if (!lastAssistantMsg || !lastAssistantMsg.content) return
-
-    accumulateRef.current = ''
-
-    const scorePrompt = `请作为资深产品评审专家，对以下文档进行量化打分。
+  const scoreReview = useCallback(
+    () => streamAction((content) => `请作为资深产品评审专家，对以下文档进行量化打分。
 
 请从以下 4 个维度评分（1-10 分，整数）：
 1. **completeness**（完整性）— 是否覆盖了所有必要的功能模块和场景
@@ -539,61 +483,13 @@ ${lastAssistantMsg.content}
 }
 
 <document>
-${lastAssistantMsg.content}
-</document>`
+${content}
+</document>`),
+    [streamAction],
+  )
 
-    const userMessage: Message = {
-      id: crypto.randomUUID(),
-      conversationId: activeConversationId,
-      role: 'user',
-      content: scorePrompt,
-      status: 'completed',
-      partIndex: 0,
-      totalParts: null,
-      thinkingContent: null,
-      errorMessage: null,
-      createdAt: Date.now(),
-    }
-
-    const chatMessages: ChatMessage[] = [
-      { role: 'system', content: prompt },
-    ]
-    for (const msg of messages) {
-      if (msg.role === 'user' || msg.role === 'assistant') {
-        chatMessages.push({ role: msg.role, content: msg.content })
-      }
-    }
-    chatMessages.push({ role: 'user', content: scorePrompt })
-
-    await executeStream(
-      activeConversationId,
-      config,
-      userMessage,
-      makeAssistantMsg(activeConversationId),
-      chatMessages,
-      new AbortController(),
-    )
-  }, [activeConversationId, messages, systemPrompt, streamState, getConfigById, executeStream])
-
-  const estimateTimeline = useCallback(async () => {
-    if (!activeConversationId || streamState.abortController) return
-
-    const conv = useConversationStore.getState().conversations.find(
-      (c) => c.id === activeConversationId,
-    )
-    if (!conv) return
-    const config = getConfigById(conv.llmConfigId)
-    if (!config) return
-
-    const template = getTemplateById(conv.templateId)
-    const prompt = enhanceSystemPrompt(template?.systemPrompt || systemPrompt)
-
-    const lastAssistantMsg = [...messages].reverse().find((m) => m.role === 'assistant')
-    if (!lastAssistantMsg || !lastAssistantMsg.content) return
-
-    accumulateRef.current = ''
-
-    const timelinePrompt = `请作为技术项目经理，对以下产品文档进行开发时间轴估算。
+  const estimateTimeline = useCallback(
+    () => streamAction((content) => `请作为技术项目经理，对以下产品文档进行开发时间轴估算。
 
 请：
 1. 列出各个功能模块
@@ -614,58 +510,13 @@ gantt
 \`\`\`
 
 <document>
-${lastAssistantMsg.content}
-</document>`
+${content}
+</document>`),
+    [streamAction],
+  )
 
-    const userMessage: Message = {
-      id: crypto.randomUUID(),
-      conversationId: activeConversationId,
-      role: 'user',
-      content: timelinePrompt,
-      status: 'completed',
-      partIndex: 0,
-      totalParts: null,
-      thinkingContent: null,
-      errorMessage: null,
-      createdAt: Date.now(),
-    }
-
-    const chatMessages: ChatMessage[] = [
-      { role: 'system', content: prompt },
-    ]
-    for (const msg of messages) {
-      if (msg.role === 'user' || msg.role === 'assistant') {
-        chatMessages.push({ role: msg.role, content: msg.content })
-      }
-    }
-    chatMessages.push({ role: 'user', content: timelinePrompt })
-
-    await executeStream(
-      activeConversationId,
-      config,
-      userMessage,
-      makeAssistantMsg(activeConversationId),
-      chatMessages,
-      new AbortController(),
-    )
-  }, [activeConversationId, messages, systemPrompt, streamState, getConfigById, executeStream])
-
-  const reverseToMindMap = useCallback(async () => {
-    if (!activeConversationId || streamState.abortController) return
-
-    const conv = useConversationStore.getState().conversations.find(
-      (c) => c.id === activeConversationId,
-    )
-    if (!conv) return
-    const config = getConfigById(conv.llmConfigId)
-    if (!config) return
-
-    const lastAssistantMsg = [...messages].reverse().find((m) => m.role === 'assistant')
-    if (!lastAssistantMsg || !lastAssistantMsg.content) return
-
-    accumulateRef.current = ''
-
-    const reversePrompt = `请将以下产品需求文档（PRD）逆向解析为思维导图格式（Markdown 缩进列表）。
+  const reverseToMindMap = useCallback(
+    () => streamAction((content) => `请将以下产品需求文档（PRD）逆向解析为思维导图格式（Markdown 缩进列表）。
 
 要求：
 1. 提取文档的层级结构，还原为模块→功能组→功能点的树形关系
@@ -687,62 +538,13 @@ ${lastAssistantMsg.content}
 请直接输出思维导图 Markdown 内容，不要包含其他说明文字。
 
 <document>
-${lastAssistantMsg.content}
-</document>`
+${content}
+</document>`),
+    [streamAction],
+  )
 
-    const userMessage: Message = {
-      id: crypto.randomUUID(),
-      conversationId: activeConversationId,
-      role: 'user',
-      content: reversePrompt,
-      status: 'completed',
-      partIndex: 0,
-      totalParts: null,
-      thinkingContent: null,
-      errorMessage: null,
-      createdAt: Date.now(),
-    }
-
-    const chatMessages: ChatMessage[] = []
-    const template = getTemplateById(conv.templateId)
-    const prompt = enhanceSystemPrompt(template?.systemPrompt || systemPrompt)
-    chatMessages.push({ role: 'system', content: prompt })
-    for (const msg of messages) {
-      if (msg.role === 'user' || msg.role === 'assistant') {
-        chatMessages.push({ role: msg.role, content: msg.content })
-      }
-    }
-    chatMessages.push({ role: 'user', content: reversePrompt })
-
-    await executeStream(
-      activeConversationId,
-      config,
-      userMessage,
-      makeAssistantMsg(activeConversationId),
-      chatMessages,
-      new AbortController(),
-    )
-  }, [activeConversationId, messages, systemPrompt, streamState, getConfigById, executeStream])
-
-  const generateCodeSkeleton = useCallback(async () => {
-    if (!activeConversationId || streamState.abortController) return
-
-    const conv = useConversationStore.getState().conversations.find(
-      (c) => c.id === activeConversationId,
-    )
-    if (!conv) return
-    const config = getConfigById(conv.llmConfigId)
-    if (!config) return
-
-    const template = getTemplateById(conv.templateId)
-    const prompt = enhanceSystemPrompt(template?.systemPrompt || systemPrompt)
-
-    const lastAssistantMsg = [...messages].reverse().find((m) => m.role === 'assistant')
-    if (!lastAssistantMsg || !lastAssistantMsg.content) return
-
-    accumulateRef.current = ''
-
-    const codeSkeletonPrompt = `请作为资深全栈工程师，根据以下产品需求文档（PRD）生成完整的代码骨架。
+  const generateCodeSkeleton = useCallback(
+    () => streamAction((content) => `请作为资深全栈工程师，根据以下产品需求文档（PRD）生成完整的代码骨架。
 
 请输出以下内容（使用 Markdown 格式）：
 
@@ -772,41 +574,10 @@ project-root/
 请确保代码骨架与 PRD 中的功能模块一一对应，覆盖所有核心功能。
 
 <document>
-${lastAssistantMsg.content}
-</document>`
-
-    const userMessage: Message = {
-      id: crypto.randomUUID(),
-      conversationId: activeConversationId,
-      role: 'user',
-      content: codeSkeletonPrompt,
-      status: 'completed',
-      partIndex: 0,
-      totalParts: null,
-      thinkingContent: null,
-      errorMessage: null,
-      createdAt: Date.now(),
-    }
-
-    const chatMessages: ChatMessage[] = [
-      { role: 'system', content: prompt },
-    ]
-    for (const msg of messages) {
-      if (msg.role === 'user' || msg.role === 'assistant') {
-        chatMessages.push({ role: msg.role, content: msg.content })
-      }
-    }
-    chatMessages.push({ role: 'user', content: codeSkeletonPrompt })
-
-    await executeStream(
-      activeConversationId,
-      config,
-      userMessage,
-      makeAssistantMsg(activeConversationId),
-      chatMessages,
-      new AbortController(),
-    )
-  }, [activeConversationId, messages, systemPrompt, streamState, getConfigById, executeStream])
+${content}
+</document>`),
+    [streamAction],
+  )
 
   const startComparison = useCallback(async (comparisonConfigId: string) => {
     if (!activeConversationId || streamState.abortController) return

@@ -27,8 +27,8 @@ async function pushToNotion(title: string, content: string, config: PlatformConf
   const html = mdToHtml(content)
   const parentId = config.notionParentId || ''
 
-  const blocks = html.split(/(?=<h[1-4]>)/).filter(Boolean).map((block) => {
-    const isHeading = block.match(/^<h([1-4])>(.+?)<\/h[1-4]>$/)
+  const blocks = html.split(/(?=<h[1-4][>\s])/).filter(Boolean).map((block) => {
+    const isHeading = block.match(/^<h([1-4])[^>]*>(.+?)<\/h[1-4]>$/)
     if (isHeading) {
       return {
         object: 'block',

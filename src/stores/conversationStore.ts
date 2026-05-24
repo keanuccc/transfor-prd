@@ -57,28 +57,31 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
   },
 
   renameConversation: async (id, title) => {
-    await db.conversations.update(id, { title, updatedAt: Date.now() })
+    const now = Date.now()
+    await db.conversations.update(id, { title, updatedAt: now })
     set((s) => ({
       conversations: s.conversations.map((c) =>
-        c.id === id ? { ...c, title, updatedAt: Date.now() } : c,
+        c.id === id ? { ...c, title, updatedAt: now } : c,
       ),
     }))
   },
 
   moveToFolder: async (id, folderId) => {
-    await db.conversations.update(id, { folderId, updatedAt: Date.now() })
+    const now = Date.now()
+    await db.conversations.update(id, { folderId, updatedAt: now })
     set((s) => ({
       conversations: s.conversations.map((c) =>
-        c.id === id ? { ...c, folderId, updatedAt: Date.now() } : c,
+        c.id === id ? { ...c, folderId, updatedAt: now } : c,
       ),
     }))
   },
 
   updateConversation: async (id, updates) => {
-    await db.conversations.update(id, { ...updates, updatedAt: Date.now() })
+    const now = Date.now()
+    await db.conversations.update(id, { ...updates, updatedAt: now })
     set((s) => ({
       conversations: s.conversations.map((c) =>
-        c.id === id ? { ...c, ...updates, updatedAt: Date.now() } : c,
+        c.id === id ? { ...c, ...updates, updatedAt: now } : c,
       ),
     }))
   },
