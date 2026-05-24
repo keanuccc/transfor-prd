@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -21,19 +21,29 @@ interface ClarificationDialogProps {
 
 export function ClarificationDialog({ open, questions, loading, onConfirm, onSkip }: ClarificationDialogProps) {
   const [answers, setAnswers] = useState<string[]>([])
+  const dismissedRef = useRef(false)
 
   const handleConfirm = () => {
+    dismissedRef.current = true
     onConfirm(answers)
     setAnswers([])
   }
 
   const handleSkip = () => {
+    dismissedRef.current = true
     setAnswers([])
     onSkip()
   }
 
+  const handleOpenChange = (o: boolean) => {
+    if (!o && !dismissedRef.current) {
+      onSkip()
+    }
+    dismissedRef.current = false
+  }
+
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onSkip() }}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-lg">
         {loading ? (
           <>

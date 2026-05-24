@@ -247,7 +247,7 @@ export function HomePage() {
   const hasValidFiles = files.filter((f) => !f.error && f.content).length > 0
 
   return (
-    <div className="flex h-full justify-center overflow-auto bg-gradient-to-b from-background via-background to-muted/20">
+    <div className="flex h-full justify-center overflow-auto items-start bg-gradient-to-b from-background via-background to-muted/20">
       <div className="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 size-[40rem] rounded-full bg-foreground/[0.02] blur-3xl" />
       <div className="relative flex w-full max-w-2xl flex-col px-6 py-6">
 

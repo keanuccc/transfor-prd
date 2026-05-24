@@ -8,7 +8,7 @@ export function AppLayout() {
     <TooltipProvider>
       <div className="flex h-screen bg-background">
         <Sidebar />
-        <main className="animate-[fade-in_0.4s_ease-out] flex-1 overflow-hidden bg-gradient-to-br from-background via-background to-muted/20">
+        <main className="animate-[fade-in_0.4s_ease-out] flex-1 min-h-0 overflow-hidden bg-gradient-to-br from-background via-background to-muted/20">
           <Outlet />
         </main>
       </div>

@@ -89,6 +89,9 @@ export async function* streamChatCompletion(
     }
   }
 
+  // After reader returns done, check if we were aborted rather than naturally completed
+  if (abortSignal.aborted) throw new DOMException('Aborted', 'AbortError')
+
   return { content: accumulated, finishReason, thinkingContent }
 }
 
