@@ -1,54 +1,78 @@
-# Markdown 思维导图 → PRD 转换器
+# TransforPRD
 
-将产品功能结构思维导图（Markdown 格式）自动转换为详细的产品功能描述文档（PRD），基于大语言模型生成。
+基于 AI 的 Markdown 思维导图转 PRD（产品需求文档）工具。上传 Markdown 格式的思维导图，选择模型和模板，一键生成结构化的产品需求文档。
 
-## 功能
+## 功能特性
 
-- **智能转换**：上传 Markdown 思维导图，LLM 自动展开为结构化 PRD
-- **多模型支持**：配置任意 OpenAI 兼容 API 的模型
-- **流式生成**：实时查看生成进度，支持自动续写长文档
-- **对话交互**：生成后可持续追问、补充、修改
-- **编辑导出**：预览/编辑 Markdown 源码，一键复制或下载 .md 文件
-- **历史管理**：对话历史持久化存储，支持搜索、重命名
+- **思维导图转 PRD** — 上传 `.md` 思维导图，自动解析并生成完整 PRD
+- **多模型支持** — 可配置 OpenAI 兼容的 LLM API，灵活切换模型
+- **澄清对话** — 生成前自动提出澄清问题，确保 PRD 贴合需求
+- **竞赛模式** — 多个模型同时生成 PRD，对比结果择优
+- **分段生成** — 支持按章节分段生成，处理大型文档
+- **代码骨架** — 基于 PRD 自动生成项目代码骨架
+- **版本快照** — 记录 PRD 的多个版本，方便回溯对比
+- **对话分组** — 文件夹管理对话记录，保持工作区整洁
+- **知识库注入** — 自定义知识库，在生成时注入上下文
+- **分享链接** — 生成 PRD 分享链接，团队协作更方便
+- **平台同步** — 一键同步 PRD 到飞书等外部平台
+- **Issue 同步** — 将 PRD 需求项同步为 GitHub/Linear Issue
+- **评审打分** — 对生成的 PRD 进行多维度评分
 
 ## 技术栈
 
-| 层 | 技术 |
-|---|---|
-| 框架 | React 19 + TypeScript |
-| 构建 | Vite 8 (Rolldown) |
-| 样式 | Tailwind CSS 4 |
+| 类别 | 技术 |
+|------|------|
+| 框架 | React 19、TypeScript 6 |
+| 构建 | Vite 8、Rolldown |
+| 样式 | Tailwind CSS 4、Base UI |
+| 路由 | React Router 7 |
 | 状态管理 | Zustand |
-| 路由 | React Router v7 |
 | 本地存储 | Dexie.js (IndexedDB) |
-| UI 组件 | Base UI (Radix) + 自定义组件 |
-| Markdown | react-markdown + remark-gfm |
+| Markdown | react-markdown、remark-gfm、marked |
+| 测试 | Vitest、Testing Library、jsdom |
+
+## 快速开始
+
+```bash
+# 安装依赖
+npm install
+
+# 启动开发服务器
+npm run dev
+
+# 构建生产版本
+npm run build
+
+# 运行测试
+npm test
+```
 
 ## 项目结构
 
 ```
 src/
-├── components/
-│   ├── home/           # 首页：文件上传、模型选择、生成按钮
-│   ├── run/            # 运行页：消息气泡、思维面板、编辑器工具栏
-│   ├── layout/         # 布局：侧边栏、主题切换
-│   ├── settings/       # 设置：模型配置、系统提示词
-│   └── ui/             # 基础 UI 组件
-├── hooks/              # useLLMStream, useFileUpload
-├── services/           # LLM 流式调用, 连通性检查
-├── stores/             # Zustand stores (app, conversation, llm, settings)
-├── db/                 # IndexedDB schema
-├── lib/                # 工具函数、常量
-├── pages/              # 页面组件
-├── router/             # 路由配置
-└── types/              # TypeScript 类型定义
+├── components/       # UI 组件
+│   ├── home/         # 首页相关组件
+│   ├── run/          # 生成/运行页组件
+│   ├── settings/     # 设置页组件
+│   ├── layout/       # 布局组件
+│   └── ui/           # 通用 UI 组件
+├── pages/            # 页面组件
+├── hooks/            # 自定义 Hooks
+├── stores/           # Zustand 状态管理
+├── services/         # API 服务层
+├── lib/              # 工具函数
+├── db/               # IndexedDB 数据库
+├── types/            # TypeScript 类型定义
+├── router/           # 路由配置
+└── test/             # 测试配置
 ```
 
-## 开发
+## 使用说明
 
-```bash
-npm install
-npm run dev      # 启动开发服务器
-npm run build    # 构建生产版本
-npm run lint     # ESLint 检查
-```
+1. 在**模型配置**页面添加你的 LLM API（兼容 OpenAI 接口格式）
+2. 在首页上传 Markdown 思维导图文件
+3. 选择生成模型和 PRD 模板
+4. 可选择开启澄清对话，让 AI 先帮你梳理需求
+5. 点击生成，等待 PRD 输出
+6. 在运行页查看、编辑、分享生成的 PRD
