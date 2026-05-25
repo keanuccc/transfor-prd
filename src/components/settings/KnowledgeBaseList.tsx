@@ -1,5 +1,13 @@
-import { useState } from 'react'
-import { Plus, Pencil, Trash2, BookOpen, ChevronDown, ChevronRight } from 'lucide-react'
+﻿import { useState } from 'react'
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  BookOpen,
+  ChevronDown,
+  ChevronRight,
+  Library,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -45,31 +53,34 @@ export function KnowledgeBaseList() {
   }
 
   return (
-    <section className="space-y-4">
+    <div>
       <div className="flex items-center justify-between">
-        <h2 className="flex items-center gap-2 text-sm font-semibold">
-          <span className="block size-1.5 rounded-full bg-foreground/30" />
-          知识库
-        </h2>
+        <div>
+          <h2 className="text-base font-semibold">知识库</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            上传项目背景文档、术语表、架构文档等，生成 PRD 时将自动作为上下文注入。
+          </p>
+        </div>
         {!showForm && (
-          <Button variant="outline" size="sm" className="text-xs" onClick={() => setShowForm(true)}>
-            <Plus className="mr-1 h-3 w-3" />
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setShowForm(true)}
+          >
+            <Plus className="h-3 w-3" />
             添加文档
           </Button>
         )}
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        上传项目背景文档、术语表、架构文档等，生成 PRD 时将自动作为上下文注入。
-      </p>
-
       {showForm && (
-        <div className="space-y-3 rounded-lg border bg-card/70 p-4">
+        <div className="mt-4 space-y-3 rounded-xl border bg-card/60 p-5 shadow-xs">
           <Input
             placeholder="文档名称，如「项目架构说明」"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="text-sm"
+            className="h-9 text-sm"
           />
           <Textarea
             placeholder="粘贴文档内容..."
@@ -79,8 +90,14 @@ export function KnowledgeBaseList() {
             className="resize-none text-sm"
           />
           <div className="flex justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={handleCancel}>取消</Button>
-            <Button size="sm" onClick={handleSave} disabled={!name.trim() || !content.trim()}>
+            <Button variant="outline" size="sm" onClick={handleCancel}>
+              取消
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={!name.trim() || !content.trim()}
+            >
               {editId ? '保存修改' : '添加'}
             </Button>
           </div>
@@ -88,50 +105,69 @@ export function KnowledgeBaseList() {
       )}
 
       {docs.length > 0 && (
-        <div className="space-y-1.5">
+        <div className="mt-4 space-y-1.5">
           {docs.map((doc) => (
             <div
               key={doc.id}
-              className="rounded-lg border bg-card/70 p-3 shadow-xs transition-shadow hover:shadow-sm"
+              className={cn(
+                'rounded-xl border bg-card/60 shadow-xs transition-all hover:border-primary/20 hover:shadow-sm',
+                expandedId === doc.id && 'border-primary/20 shadow-sm'
+              )}
             >
-              <div
-                className="flex cursor-pointer items-center gap-2"
-                onClick={() => setExpandedId(expandedId === doc.id ? null : doc.id)}
+              <button
+                className="flex w-full items-center gap-3 px-4 py-3 text-left"
+                onClick={() =>
+                  setExpandedId(expandedId === doc.id ? null : doc.id)
+                }
               >
-                <BookOpen className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                <span className="flex-1 text-sm font-medium truncate">{doc.name}</span>
-                <span className="text-[11px] text-muted-foreground">
-                  {doc.content.length > 200 ? `${doc.content.slice(0, 200)}...` : doc.content}
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted/60">
+                  <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{doc.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {doc.content.length > 80
+                      ? `${doc.content.slice(0, 80)}...`
+                      : doc.content}
+                  </p>
+                </div>
+                <span
+                  className={cn(
+                    'shrink-0 text-muted-foreground transition-transform duration-200',
+                    expandedId === doc.id && 'rotate-90'
+                  )}
+                >
+                  {expandedId === doc.id ? (
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  ) : (
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  )}
                 </span>
-                <span className={cn(
-                  'shrink-0 text-muted-foreground transition-transform',
-                  expandedId === doc.id && 'rotate-90'
-                )}>
-                  {expandedId === doc.id ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                </span>
-              </div>
+              </button>
               {expandedId === doc.id && (
-                <div className="mt-2 space-y-2">
-                  <pre className="whitespace-pre-wrap rounded bg-muted/50 p-2 text-xs text-muted-foreground max-h-32 overflow-auto">
+                <div className="border-t px-4 py-3">
+                  <pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded-lg bg-muted/30 p-3 text-xs leading-relaxed text-muted-foreground">
                     {doc.content}
                   </pre>
-                  <div className="flex justify-end gap-1">
+                  <div className="mt-3 flex justify-end gap-1">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-xs"
-                      onClick={() => handleStartEdit(doc.id, doc.name, doc.content)}
+                      className="gap-1 text-xs"
+                      onClick={() =>
+                        handleStartEdit(doc.id, doc.name, doc.content)
+                      }
                     >
-                      <Pencil className="mr-1 h-3 w-3" />
+                      <Pencil className="h-3 w-3" />
                       编辑
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-xs text-destructive hover:text-destructive"
+                      className="gap-1 text-xs text-destructive hover:text-destructive"
                       onClick={() => deleteDoc(doc.id)}
                     >
-                      <Trash2 className="mr-1 h-3 w-3" />
+                      <Trash2 className="h-3 w-3" />
                       删除
                     </Button>
                   </div>
@@ -143,8 +179,16 @@ export function KnowledgeBaseList() {
       )}
 
       {docs.length === 0 && !showForm && (
-        <p className="py-6 text-center text-xs text-muted-foreground">暂无知识库文档，点击上方按钮添加</p>
+        <div className="mt-6 flex flex-col items-center gap-3 rounded-xl border border-dashed py-10 text-center">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+            <Library className="h-5 w-5 text-muted-foreground/50" />
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">暂无知识库文档</p>
+            <p className="text-xs text-muted-foreground/60">点击上方按钮添加文档</p>
+          </div>
+        </div>
       )}
-    </section>
+    </div>
   )
 }

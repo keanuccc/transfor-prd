@@ -165,6 +165,10 @@ export function useLLMStream() {
       chatMessages: ChatMessage[],
       abortController: AbortController,
     ) => {
+      // Abort any existing stream before starting a new one (defense-in-depth against race conditions)
+      const prev = useConversationStore.getState().streamState
+      prev.abortController?.abort()
+
       // Set stream state FIRST, before any async ops — so stopStreaming() can find the abortController immediately
       setStreamState({
         isStreaming: true,

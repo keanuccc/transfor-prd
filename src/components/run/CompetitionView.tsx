@@ -14,7 +14,7 @@ interface CompetitionViewProps {
 
 export function CompetitionView({ competitors }: CompetitionViewProps) {
   const [votedIndex, setVotedIndex] = useState<number | null>(null)
-  const [votes, setVotes] = useState<number[]>([0, 0, 0])
+  const [votes, setVotes] = useState<number[]>(() => competitors.slice(0, 3).map(() => 0))
 
   const handleVote = (index: number) => {
     if (votedIndex !== null) return

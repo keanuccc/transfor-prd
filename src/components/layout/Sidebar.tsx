@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+﻿import { useNavigate } from 'react-router-dom'
 import { useState, useRef, useEffect, useMemo } from 'react'
 import {
   Brain,
@@ -568,7 +568,7 @@ export function Sidebar() {
 
       {/* Bottom: Theme + Settings + Collapse */}
       <div className={cn(
-        'bg-muted/20 p-1.5',
+        'bg-muted/30 p-2',
         sidebarCollapsed ? 'flex flex-col items-center gap-1.5' : 'flex items-center gap-1',
       )}>
         <ThemeToggle collapsed={sidebarCollapsed} />

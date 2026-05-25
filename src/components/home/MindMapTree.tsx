@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { ChevronRight, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -154,6 +154,18 @@ function TreeNodeItem({
 
 export function MindMapTree({ content, selectedPaths, onSelectedPathsChange }: MindMapTreeProps) {
   const tree = useMemo(() => parseTree(content), [content])
+
+  // Auto-select all nodes when file content changes (initial load)
+  const prevContentRef = useRef(content)
+  useEffect(() => {
+    if (content !== prevContentRef.current) {
+      prevContentRef.current = content
+      const allPaths = collectAllPaths(tree)
+      if (allPaths.size > 0) {
+        onSelectedPathsChange(allPaths)
+      }
+    }
+  }, [content])
 
   const isAllSelected = useMemo(() => {
     const allPaths = collectAllPaths(tree)

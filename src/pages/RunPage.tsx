@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef, useState, useMemo } from 'react'
+﻿import { useEffect, useCallback, useRef, useState, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { AlertCircle, Columns2, FileText, GitCompare, Loader2, Trophy, X } from 'lucide-react'
@@ -37,6 +37,7 @@ import { useLLMStream } from '@/hooks/useLLMStream'
 import { useAppStore } from '@/stores/appStore'
 import { useLLMStore } from '@/stores/llmStore'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { cn } from '@/lib/utils'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { playCompletionSound } from '@/lib/sound'
 
@@ -48,7 +49,7 @@ export function RunPage() {
     useLLMStream()
   const { setSidebarCollapsed } = useAppStore()
   const { getConfigById, configs } = useLLMStore()
-  const startedRef = useRef(false)
+  const startedForIdRef = useRef<string | null>(null)
   const [editMode, setEditMode] = useState(false)
   const [editContent, setEditContent] = useState('')
   const [compareModelId, setCompareModelId] = useState<string>('')
@@ -104,8 +105,8 @@ export function RunPage() {
   const hasAssistantMessage = messages.some((m) => m.role === 'assistant')
 
   useEffect(() => {
-    if (id && conversation && !hasAssistantMessage && !streamState.isStreaming && !startedRef.current) {
-      startedRef.current = true
+    if (id && conversation && !hasAssistantMessage && !streamState.isStreaming && startedForIdRef.current !== id) {
+      startedForIdRef.current = id
       startGeneration(
         id,
         conversation.llmConfigId,
@@ -118,12 +119,60 @@ export function RunPage() {
     }
   }, [id, conversation, hasAssistantMessage, streamState.isStreaming, startGeneration])
 
-  useEffect(() => {
-    startedRef.current = false
-  }, [id])
 
   const prevIsStreaming = useRef(false)
   const assistantMessage = messages.find((m) => m.role === 'assistant')
+  // Collect all assistant messages with smart labels for view switching
+  const allAssistantMsgs = useMemo(() => {
+    const assistantMsgs = messages.filter((m) => m.role === 'assistant')
+    return assistantMsgs.map((msg, idx) => {
+      if (idx === 0) return { ...msg, label: 'PRD 文档' }
+      const ac = msg.content || ''
+      // Detect by assistant output content pattern
+      if (ac.includes('项目目录结构') || ac.includes('```typescript') || ac.includes('```sql')) {
+        return { ...msg, label: '代码骨架' }
+      }
+      if (ac.includes('"completeness"')) {
+        return { ...msg, label: '评分结果' }
+      }
+      if (ac.includes('mermaid') && ac.includes('gantt')) {
+        return { ...msg, label: '时间轴' }
+      }
+      // Fallback: check preceding user prompt
+      const msgIndex = messages.indexOf(msg)
+      const prevUserMsg = [...messages.slice(0, msgIndex)].reverse().find((m) => m.role === 'user')
+      const uc = prevUserMsg?.content || ''
+      if (uc.includes('精修')) return { ...msg, label: '精修' }
+      if (uc.includes('审阅')) return { ...msg, label: '审阅' }
+      if (uc.includes('逆向') || uc.includes('思维导图')) return { ...msg, label: '思维导图' }
+      return { ...msg, label: '输出 ' + String(idx + 1) }
+    })
+  }, [messages])
+
+  const [activeViewId, setActiveViewId] = useState<string | null>(null)
+  const prevAssistantCount = useRef(0)
+
+  // Auto-switch to latest assistant message, or default to first PRD
+  useEffect(() => {
+    if (allAssistantMsgs.length === 0) {
+      setActiveViewId(null)
+      prevAssistantCount.current = 0
+      return
+    }
+    if (allAssistantMsgs.length > prevAssistantCount.current) {
+      setActiveViewId(allAssistantMsgs[allAssistantMsgs.length - 1].id)
+    } else if (!activeViewId || !allAssistantMsgs.find((m) => m.id === activeViewId)) {
+      setActiveViewId(allAssistantMsgs[0].id)
+    }
+    prevAssistantCount.current = allAssistantMsgs.length
+  }, [allAssistantMsgs])
+
+  // Active view message
+  const activeAssistantMsg = useMemo(
+    () => allAssistantMsgs.find((m) => m.id === activeViewId) || null,
+    [allAssistantMsgs, activeViewId],
+  )
+
   useEffect(() => {
     if (prevIsStreaming.current && !streamState.isStreaming && assistantMessage?.content && enableCompletionSound) {
       playCompletionSound()
@@ -234,11 +283,12 @@ export function RunPage() {
   }, [])
 
   const handleRestoreVersion = useCallback((content: string) => {
-    if (assistantMessage) {
-      updateMessage(assistantMessage.id, { content })
+    const target = activeAssistantMsg || assistantMessage
+    if (target) {
+      updateMessage(target.id, { content })
       toast.success('已恢复历史版本')
     }
-  }, [assistantMessage, updateMessage])
+  }, [activeAssistantMsg, assistantMessage, updateMessage])
 
   const handleGenerateCodeSkeleton = useCallback(() => {
     if (streamState.isStreaming) {
@@ -369,19 +419,21 @@ export function RunPage() {
   }, [configs, conversation])
 
   const handleToggleEditMode = useCallback(() => {
-    if (!editMode && assistantMessage) {
-      setEditContent(assistantMessage.content)
-    } else if (editMode && assistantMessage && editContent !== assistantMessage.content) {
-      updateMessage(assistantMessage.id, { content: editContent })
-      if (id && assistantMessage.content) {
-        createSnapshot(id, assistantMessage.content, `编辑前自动保存 - ${new Date().toLocaleString('zh-CN')}`)
+    const target = activeAssistantMsg || assistantMessage
+    if (!editMode && target) {
+      setEditContent(target.content)
+    } else if (editMode && target && editContent !== target.content) {
+      updateMessage(target.id, { content: editContent })
+      if (id && target.content) {
+        createSnapshot(id, target.content, `编辑前自动保存 - ${new Date().toLocaleString('zh-CN')}`)
       }
     }
     setEditMode((prev) => !prev)
-  }, [editMode, assistantMessage, editContent, updateMessage, id, createSnapshot])
+  }, [editMode, activeAssistantMsg, assistantMessage, editContent, updateMessage, id, createSnapshot])
 
   const handleDownloadMd = useCallback(() => {
-    const content = assistantMessage?.content
+    const target = activeAssistantMsg || assistantMessage
+    const content = target?.content
     if (!content) return
     const fileName = conversation?.title ? `${conversation.title}.md` : '文档.md'
     const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' })
@@ -392,14 +444,14 @@ export function RunPage() {
     a.click()
     URL.revokeObjectURL(url)
     toast.success('Markdown 下载成功')
-  }, [assistantMessage?.content, conversation?.title])
+  }, [activeAssistantMsg, assistantMessage?.content, conversation?.title])
 
   useKeyboardShortcuts({
-    onToggleEdit: assistantMessage ? handleToggleEditMode : undefined,
-    onExportMd: assistantMessage ? handleDownloadMd : undefined,
+    onToggleEdit: (activeAssistantMsg || assistantMessage) ? handleToggleEditMode : undefined,
+    onExportMd: (activeAssistantMsg || assistantMessage) ? handleDownloadMd : undefined,
   })
 
-  const currentContent = editMode ? editContent : (assistantMessage?.content || '')
+  const currentContent = editMode ? editContent : ((activeAssistantMsg || assistantMessage)?.content || '')
 
   if (conversation && !modelConfig) {
     return (
@@ -421,9 +473,9 @@ export function RunPage() {
   return (
     <div className="flex h-full">
       {/* Middle: Conversation panel */}
-      <div className="flex w-80 shrink-0 flex-col border-r border-border/40 bg-gradient-to-b from-muted/30 to-muted/10">
-        <div className="flex items-center justify-between border-b border-border/30 px-4 py-2.5">
-          <h2 className="text-sm font-semibold tracking-tight">对话</h2>
+      <div className="flex w-80 shrink-0 flex-col border-r border-border/50 bg-card/80 backdrop-blur-sm">
+        <div className="flex items-center justify-between border-b border-border/50 px-4 py-3">
+          <h2 className="text-sm font-semibold tracking-tight text-foreground/80">对话</h2>
           {streamState.isStreaming && <StopButton onClick={stopStreaming} />}
         </div>
 
@@ -437,7 +489,7 @@ export function RunPage() {
         <ScrollArea className="min-h-0 flex-1">
           <div className="px-3">
             {messages.length === 0 && !streamState.isStreaming && (
-              <div className="flex items-center justify-center py-12 text-xs text-muted-foreground/60">
+              <div className="flex items-center justify-center py-16 text-xs text-muted-foreground/50 italic">
                 准备生成...
               </div>
             )}
@@ -485,7 +537,32 @@ export function RunPage() {
           showIssueSync={showIssueSync}
         />
 
-        {/* Comparison bar */}
+        
+
+        {/* View switcher tabs for multiple assistant outputs */}
+        {allAssistantMsgs.length > 1 && (
+          <div className="flex items-center gap-1 border-b border-border/50 bg-muted/20 px-3 py-1.5 overflow-x-auto">
+            {allAssistantMsgs.map((msg) => (
+              <button
+                key={msg.id}
+                type="button"
+                onClick={() => setActiveViewId(msg.id)}
+                className={cn(
+                  'shrink-0 px-3 py-1 text-xs rounded-md transition-colors',
+                  msg.id === activeViewId
+                    ? 'bg-card shadow-sm text-foreground font-medium ring-1 ring-border/30'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
+                )}
+              >
+                {msg.label}
+                {msg.status === 'streaming' && (
+                  <span className="ml-1 inline-block h-2 w-2 animate-pulse rounded-full bg-primary/60 align-middle" />
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+{/* Comparison bar */}
         {currentContent && otherModels.length > 0 && (
           <div className="flex items-center gap-2 border-b px-3 py-1.5">
             <GitCompare className="h-3.5 w-3.5 text-muted-foreground" />
@@ -599,7 +676,7 @@ export function RunPage() {
                     />
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 divide-x h-full">
+                  <div className="grid grid-cols-2 divide-x divide-border/50 h-full">
                     {/* Original */}
                     <div className="px-6 py-4 overflow-auto">
                       <div className="mb-2 text-xs font-medium text-muted-foreground">
@@ -646,8 +723,8 @@ export function RunPage() {
             ) : streamState.isStreaming ? (
               <SkeletonPrd />
             ) : (
-              <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground animate-[subtle-pulse_3s_ease-in-out_infinite]">
-                <FileText className="h-10 w-10 opacity-30" />
+              <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground/50 animate-[subtle-pulse_3s_ease-in-out_infinite]">
+                <FileText className="h-12 w-12 opacity-20" />
                 <p className="text-sm">等待生成</p>
               </div>
             )}
@@ -668,13 +745,13 @@ export function RunPage() {
             />
           )}
           {currentContent && !editMode && !showCompare && !showVersionHistory && !showIssueSync && (
-            <div className="w-44 shrink-0 overflow-auto border-l border-border/40 bg-muted/10 px-3 py-4">
+            <div className="w-44 shrink-0 overflow-auto border-l border-border/50 bg-muted/20 px-3 py-4">
               <TableOfContents content={currentContent} />
             </div>
           )}
         </div>
 
-        <ScorePanel scores={scoreReviewResult} loading={scoreReviewLoading} />
+        <ScorePanel scores={scoreReviewResult} loading={scoreReviewLoading} onClose={() => { setScoreReviewResult(null); setScoreReviewLoading(false) }} />
 
         <BackToTop container={prdViewportRef.current} />
 

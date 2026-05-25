@@ -1,5 +1,22 @@
-import { useState } from 'react'
-import { Plus, Pencil, Trash2, FileText, Map, Code, PenTool, Rocket, Shield, Database, Palette, Zap, Globe, Layers, BookOpen } from 'lucide-react'
+﻿import { useState } from 'react'
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  FileText,
+  Map,
+  Code,
+  PenTool,
+  Rocket,
+  Shield,
+  Database,
+  Palette,
+  Zap,
+  Globe,
+  Layers,
+  BookOpen,
+  LayoutTemplate,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -92,50 +109,67 @@ export function CustomTemplateList() {
   }
 
   return (
-    <section className="space-y-4">
+    <div>
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-semibold">自定义模板</h2>
-          <p className="text-xs text-muted-foreground">创建和编辑自己的 Prompt 模板，不受内置 3 种模板限制</p>
+          <h2 className="text-base font-semibold">自定义模板</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            创建和编辑自己的 Prompt 模板，不受内置 3 种模板限制
+          </p>
         </div>
-        <Button variant="outline" size="xs" className="gap-1" onClick={handleOpenNew}>
+        <Button variant="outline" size="sm" className="gap-1.5" onClick={handleOpenNew}>
           <Plus className="h-3 w-3" />
           新建模板
         </Button>
       </div>
 
       {customTemplates.length === 0 ? (
-        <p className="py-4 text-center text-xs text-muted-foreground">暂无自定义模板，点击"新建模板"创建</p>
+        <div className="mt-6 flex flex-col items-center gap-3 rounded-xl border border-dashed py-10 text-center">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+            <LayoutTemplate className="h-5 w-5 text-muted-foreground/50" />
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">暂无自定义模板</p>
+            <p className="text-xs text-muted-foreground/60">点击"新建模板"创建第一个</p>
+          </div>
+        </div>
       ) : (
-        <div className="space-y-2">
+        <div className="mt-4 space-y-2">
           {customTemplates.map((t) => {
-            const Icon = ICON_OPTIONS.find((io) => io.value === t.icon)?.icon || FileText
+            const Icon =
+              ICON_OPTIONS.find((io) => io.value === t.icon)?.icon || FileText
             return (
               <div
                 key={t.id}
-                className="flex items-center gap-3 rounded-lg border px-3 py-2.5"
+                className="group flex items-center gap-3 rounded-xl border bg-card/60 px-4 py-3 shadow-xs transition-all hover:border-primary/20 hover:shadow-sm"
               >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted">
-                  <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted/60">
+                  <Icon className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium truncate">{t.name}</p>
-                  <p className="text-[10px] text-muted-foreground truncate">{t.description || '无描述'}</p>
+                  <p className="truncate text-sm font-medium">{t.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {t.description || '无描述'}
+                  </p>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={() => handleOpenEdit(t)}
-                >
-                  <Pencil className="h-3 w-3" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={() => handleDelete(t.id)}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
+                <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => handleOpenEdit(t)}
+                    className="h-7 w-7 rounded-lg"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => handleDelete(t.id)}
+                    className="h-7 w-7 rounded-lg text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
             )
           })}
@@ -149,28 +183,34 @@ export function CustomTemplateList() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label className="text-xs">模板名称</Label>
+              <Label className="text-xs font-medium">模板名称</Label>
               <Input
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 placeholder="例如：API 接口文档"
+                className="h-9"
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">简短描述</Label>
+              <Label className="text-xs font-medium">简短描述</Label>
               <Input
                 value={form.description}
-                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, description: e.target.value }))
+                }
                 placeholder="描述此模板的用途"
+                className="h-9"
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">图标</Label>
+              <Label className="text-xs font-medium">图标</Label>
               <Select
                 value={form.icon}
-                onValueChange={(v) => setForm((f) => ({ ...f, icon: v || 'FileText' }))}
+                onValueChange={(v) =>
+                  setForm((f) => ({ ...f, icon: v || 'FileText' }))
+                }
               >
-                <SelectTrigger className="h-8 text-xs">
+                <SelectTrigger className="h-9 text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -186,10 +226,12 @@ export function CustomTemplateList() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">系统提示词</Label>
+              <Label className="text-xs font-medium">系统提示词</Label>
               <Textarea
                 value={form.systemPrompt}
-                onChange={(e) => setForm((f) => ({ ...f, systemPrompt: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, systemPrompt: e.target.value }))
+                }
                 placeholder="编写 Prompt 模板，使用 {{fileContent}} 作为思维导图内容占位符..."
                 rows={8}
                 className="resize-none font-mono text-xs"
@@ -197,11 +239,15 @@ export function CustomTemplateList() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" size="xs" onClick={() => setOpen(false)}>取消</Button>
-            <Button size="xs" onClick={handleSave}>{editing ? '保存' : '创建'}</Button>
+            <Button variant="outline" size="sm" onClick={() => setOpen(false)}>
+              取消
+            </Button>
+            <Button size="sm" onClick={handleSave}>
+              {editing ? '保存' : '创建'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </section>
+    </div>
   )
 }

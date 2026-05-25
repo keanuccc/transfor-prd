@@ -78,13 +78,15 @@ export async function pushToPlatform(
   title: string,
   content: string,
   config: PlatformConfig,
-): Promise<{ url: string }> {
+): Promise<{ url: string } | null> {
   if (config.type === 'notion') {
     const url = await pushToNotion(title, content, config)
     return { url }
   }
 
-  throw new Error(`暂不支持的平台: ${config.type}`)
+  // Feishu and Yuque don't support direct API push from the browser.
+  // Return null to signal the caller should fall back to clipboard copy.
+  return null
 }
 
 export function getPlatformContent(title: string, content: string, type: PlatformType): string {

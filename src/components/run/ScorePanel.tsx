@@ -1,18 +1,28 @@
-import { ScoreRadar } from '@/components/run/ScoreRadar'
-import { type ReviewScores, SCORE_DIMENSIONS } from '@/lib/reviewScoring'
-import { cn } from '@/lib/utils'
+﻿import { X } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { ScoreRadar } from "@/components/run/ScoreRadar"
+import { type ReviewScores, SCORE_DIMENSIONS } from "@/lib/reviewScoring"
+import { cn } from "@/lib/utils"
 
 interface ScorePanelProps {
   scores: ReviewScores | null
   loading: boolean
+  onClose?: () => void
 }
 
-export function ScorePanel({ scores, loading }: ScorePanelProps) {
+export function ScorePanel({ scores, loading, onClose }: ScorePanelProps) {
   if (!scores && !loading) return null
 
   return (
-    <div className="border-t px-6 py-4">
-      <h3 className="mb-3 text-sm font-semibold">PRD 评审打分</h3>
+    <div className="border-t border-border/50 bg-muted/10 px-6 py-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-sm font-semibold">PRD 评审打分</h3>
+        {onClose && (
+          <Button variant="ghost" size="icon-xs" onClick={onClose} className="-mr-1">
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        )}
+      </div>
       {loading && !scores ? (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -33,8 +43,8 @@ export function ScorePanel({ scores, loading }: ScorePanelProps) {
                   <div className="mt-0.5 h-1.5 w-full rounded-full bg-muted">
                     <div
                       className={cn(
-                        'h-full rounded-full transition-all duration-500',
-                        val >= 8 ? 'bg-emerald-500' : val >= 6 ? 'bg-amber-500' : 'bg-red-500',
+                        "h-full rounded-full transition-all duration-500",
+                        val >= 8 ? "bg-emerald-500" : val >= 6 ? "bg-amber-500" : "bg-red-500",
                       )}
                       style={{ width: `${(val / 10) * 100}%` }}
                     />

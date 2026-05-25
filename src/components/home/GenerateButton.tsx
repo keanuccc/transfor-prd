@@ -1,4 +1,4 @@
-import { Loader2, Sparkles } from 'lucide-react'
+﻿import { Loader2, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface GenerateButtonProps {
@@ -11,7 +11,7 @@ interface GenerateButtonProps {
 export function GenerateButton({ loading, disabled, onClick, label }: GenerateButtonProps) {
   return (
     <Button
-      className="w-full shadow-sm transition-all hover:shadow-md active:scale-[0.99]"
+      className="w-full shadow-sm transition-all duration-200 hover:shadow-md active:scale-[0.98] bg-primary/90 hover:bg-primary"
       size="lg"
       disabled={disabled || loading}
       onClick={onClick}

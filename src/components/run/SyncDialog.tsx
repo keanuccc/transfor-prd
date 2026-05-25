@@ -45,9 +45,17 @@ export function SyncDialog({ open, onOpenChange, content, title }: SyncDialogPro
       notionParentId: notionParentId.trim() || undefined,
     }
     try {
-      const { url } = await pushToPlatform(title || 'PRD 文档', content, config)
-      setResult({ url })
-      toast.success('推送成功')
+      const result = await pushToPlatform(title || 'PRD 文档', content, config)
+      if (result) {
+        setResult({ url: result.url })
+        toast.success('推送成功')
+      } else {
+        // Platform doesn't support direct push (Feishu/Yuque), fall back to clipboard
+        const platformContent = getPlatformContent(title || 'PRD 文档', content, platform)
+        await navigator.clipboard.writeText(platformContent)
+        setResult({ copied: true })
+        toast.success('已复制格式化内容到剪贴板，请粘贴到 ' + (platform === 'feishu' ? '飞书文档' : '语雀'))
+      }
     } catch (err) {
       // If API fails (likely CORS in browser), fall back to clipboard
       toast.error(err instanceof Error ? err.message : '推送失败，已复制内容到剪贴板作为备用')

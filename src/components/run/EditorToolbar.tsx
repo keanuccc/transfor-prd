@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+﻿import { useMemo } from 'react'
 import { Copy, Download, Eye, Pencil, Sparkles, FileText, FileCode, Moon, ChevronDown, ClipboardCheck, BarChart3, Clock, GitFork, Code2, History, Link2, Share2, Bug } from 'lucide-react'
 import { marked } from 'marked'
 import { Button } from '@/components/ui/button'
@@ -339,7 +339,7 @@ ${latex}
   }
 
   return (
-    <div className="flex items-center gap-0.5 border-b border-border/30 bg-muted/20 px-4 py-1.5 backdrop-blur-sm">
+    <div className="flex items-center gap-0.5 border-b border-border/50 bg-muted/30 px-4 py-2 backdrop-blur-sm">
       <Button variant={editMode ? 'secondary' : 'ghost'} size="xs" className="gap-1" onClick={onToggleEditMode} disabled={!content}>
         {editMode ? (
           <>

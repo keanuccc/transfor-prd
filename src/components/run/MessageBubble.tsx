@@ -1,4 +1,4 @@
-import { cn } from '@/lib/utils'
+﻿import { cn } from '@/lib/utils'
 import { User, Bot } from 'lucide-react'
 import type { Message } from '@/types'
 
@@ -25,7 +25,7 @@ function getUserMessagePreview(content: string): string {
 
 export function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === 'user'
-  const isStructuredPrompt = isUser && message.content.includes('产品功能结构思维导图')
+  const isStructuredPrompt = isUser && message.content.includes('<content>')
 
   const displayContent = isStructuredPrompt
     ? getUserMessagePreview(message.content)
@@ -40,10 +40,10 @@ export function MessageBubble({ message }: MessageBubbleProps) {
       )}
       <div
         className={cn(
-          'max-w-[85%] rounded-xl px-3.5 py-2.5 text-xs leading-relaxed',
+          'max-w-[85%] rounded-2xl px-4 py-3 text-xs leading-relaxed',
           isUser
-            ? 'bg-primary text-primary-foreground shadow-xs'
-            : 'bg-muted/70 text-foreground/80 ring-1 ring-border/40',
+            ? 'bg-primary text-primary-foreground shadow-sm'
+            : 'bg-muted/60 text-foreground/85 ring-1 ring-border/40',
         )}
       >
         <p className="whitespace-pre-wrap">{displayContent || '...'}</p>

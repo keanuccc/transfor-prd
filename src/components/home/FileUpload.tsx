@@ -1,4 +1,4 @@
-import { useRef, useCallback, useState } from 'react'
+﻿import { useRef, useCallback, useState } from 'react'
 import { Upload, X, FileText, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -126,11 +126,11 @@ export function FileUpload({ files, multiple = false, onFilesChange }: FileUploa
 
       <div
         className={cn(
-          'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-6 transition-all duration-200',
+          'flex cursor-pointer flex-col items-center justify-center gap-2.5 rounded-2xl border-2 border-dashed px-6 transition-all duration-300',
           files.length > 0 ? 'py-3' : 'py-4',
           isDragging
-            ? 'border-primary bg-primary/5 scale-[1.01]'
-            : 'border-muted-foreground/20 hover:border-muted-foreground/35 hover:bg-muted/20',
+            ? 'border-primary/40 bg-primary/[0.04] scale-[1.01]'
+            : 'border-muted-foreground/15 hover:border-primary/30 hover:bg-primary/[0.03]',
         )}
         onDragEnter={onDragEnter}
         onDragOver={onDragOver}

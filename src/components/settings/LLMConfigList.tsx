@@ -1,5 +1,16 @@
 import { useState } from 'react'
-import { Plus, Pencil, Trash2, Star, ChevronUp, ChevronDown } from 'lucide-react'
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Star,
+  ChevronUp,
+  ChevronDown,
+  Cpu,
+  CheckCircle2,
+  XCircle,
+  GripVertical,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { LLMConfigForm } from './LLMConfigForm'
 import { useLLMStore } from '@/stores/llmStore'
@@ -48,53 +59,113 @@ export function LLMConfigList() {
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-medium">大模型配置</h2>
-        <Button size="sm" className="gap-1" onClick={handleAdd}>
-          <Plus className="h-4 w-4" />
+        <div>
+          <h2 className="text-base font-semibold">大模型配置</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            管理多个 LLM 连接，支持排序与连通性测试
+          </p>
+        </div>
+        <Button size="sm" className="gap-1.5" onClick={handleAdd}>
+          <Plus className="h-3.5 w-3.5" />
           添加模型
         </Button>
       </div>
 
       {sorted.length === 0 && (
-        <p className="mt-3 text-sm text-muted-foreground">
-          还没有配置模型，点击上方按钮添加。
-        </p>
+        <div className="mt-6 flex flex-col items-center gap-3 rounded-xl border border-dashed py-10 text-center">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+            <Cpu className="h-5 w-5 text-muted-foreground/50" />
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">尚未配置模型</p>
+            <p className="text-xs text-muted-foreground/60">点击上方按钮添加第一个模型连接</p>
+          </div>
+        </div>
       )}
 
-      <div className="mt-3 space-y-2">
+      <div className="mt-4 space-y-2">
         {sorted.map((config, index) => (
           <div
             key={config.id}
-            className="flex items-center gap-2 rounded-lg border px-3 py-2"
+            className="group flex items-center gap-3 rounded-xl border bg-card/60 px-4 py-3 shadow-xs transition-all hover:border-primary/20 hover:shadow-sm"
           >
-            <div className="flex flex-col">
-              <Button variant="ghost" size="icon-xs" onClick={() => moveUp(index)} disabled={index === 0}>
+            <div className="flex shrink-0 flex-col gap-0.5">
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => moveUp(index)}
+                disabled={index === 0}
+                className="h-5 w-5 rounded"
+              >
                 <ChevronUp className="h-3 w-3" />
               </Button>
-              <Button variant="ghost" size="icon-xs" onClick={() => moveDown(index)} disabled={index === sorted.length - 1}>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => moveDown(index)}
+                disabled={index === sorted.length - 1}
+                className="h-5 w-5 rounded"
+              >
                 <ChevronDown className="h-3 w-3" />
               </Button>
             </div>
 
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">
-                {config.modelName}
-                {config.isDefault && (
-                  <span className="ml-2 text-xs text-primary">(默认)</span>
-                )}
-              </p>
-              <p className="truncate text-xs text-muted-foreground">{config.baseUrl}</p>
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted/60">
+              <Cpu className="h-4 w-4 text-muted-foreground" />
             </div>
 
-            <Button variant="ghost" size="icon-xs" onClick={() => setDefault(config.id)} disabled={config.isDefault}>
-              <Star className={`h-3.5 w-3.5 ${config.isDefault ? 'fill-primary text-primary' : ''}`} />
-            </Button>
-            <Button variant="ghost" size="icon-xs" onClick={() => handleEdit(config)}>
-              <Pencil className="h-3.5 w-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon-xs" className="text-destructive" onClick={() => deleteConfig(config.id)}>
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <p className="truncate text-sm font-medium">{config.modelName}</p>
+                {config.isDefault && (
+                  <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                    默认
+                  </span>
+                )}
+              </div>
+              <div className="mt-0.5 flex items-center gap-2">
+                <p className="truncate text-xs text-muted-foreground">{config.baseUrl}</p>
+                {config.lastPingSuccess !== undefined && (
+                  <span className="shrink-0">
+                    {config.lastPingSuccess ? (
+                      <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                    ) : (
+                      <XCircle className="h-3 w-3 text-destructive/60" />
+                    )}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => setDefault(config.id)}
+                disabled={config.isDefault}
+                className="h-7 w-7 rounded-lg"
+              >
+                <Star
+                  className={`h-3.5 w-3.5 ${config.isDefault ? 'fill-amber-400 text-amber-400' : ''}`}
+                />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => handleEdit(config)}
+                className="h-7 w-7 rounded-lg"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                className="h-7 w-7 rounded-lg text-destructive hover:text-destructive"
+                onClick={() => deleteConfig(config.id)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
           </div>
         ))}
       </div>

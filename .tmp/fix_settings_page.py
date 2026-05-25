@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿settings_page = """import { useState } from 'react'
 import { Switch } from '@/components/ui/switch'
 import { LLMConfigList } from '@/components/settings/LLMConfigList'
 import { SystemPromptEditor } from '@/components/settings/SystemPromptEditor'
@@ -190,3 +190,8 @@ export function SettingsPage() {
     </div>
   )
 }
+"""
+
+with open(r'D:\code\transfor-prd\src\pages\SettingsPage.tsx', 'w', encoding='utf-8') as f:
+    f.write(settings_page)
+print('SettingsPage fixed')

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+﻿import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { ChevronDown, Settings2 } from 'lucide-react'
@@ -246,27 +246,31 @@ export function HomePage() {
 
   const hasValidFiles = files.filter((f) => !f.error && f.content).length > 0
 
+
   return (
-    <div className="flex h-full justify-center overflow-auto items-start bg-gradient-to-b from-background via-background to-muted/20">
-      <div className="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 size-[40rem] rounded-full bg-foreground/[0.02] blur-3xl" />
-      <div className="relative flex w-full max-w-2xl flex-col px-6 py-6">
+    <div className="flex h-full justify-center overflow-auto items-start">
+      {/* Ambient light blobs */}
+      <div className="pointer-events-none fixed top-[-15%] right-[-8%] size-[50rem] rounded-full bg-amber-200/15 dark:bg-amber-900/10 blur-3xl" />
+      <div className="pointer-events-none fixed bottom-[-8%] left-[-5%] size-[40rem] rounded-full bg-stone-200/12 dark:bg-stone-800/8 blur-3xl" />
+      
+      <div className="relative flex w-full max-w-2xl flex-col px-6 py-8 animate-[fade-in_0.5s_ease-out]">
 
         {/* Header */}
-        <div className="mb-5 text-center">
-          <h1 className="text-2xl font-bold tracking-tight">
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground/90">
             Markdown 思维导图转 PRD
           </h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">
+          <p className="mt-2 text-sm text-muted-foreground/75 italic">
             上传产品功能结构思维导图，生成详细的产品功能描述文档
           </p>
         </div>
 
         {/* Upload card */}
-        <div className="rounded-xl border border-border/40 bg-card/80 p-4 shadow-sm backdrop-blur-sm">
-          <Label className="text-xs font-medium">
+        <div className="rounded-2xl border border-border/50 bg-card/90 p-5 shadow-sm backdrop-blur-sm transition-shadow hover:shadow-md">
+          <Label className="text-[0.7rem] font-semibold tracking-wide uppercase text-muted-foreground/80">
             上传文件 <span className="text-destructive">*</span>
           </Label>
-          <div className="mt-1.5">
+          <div className="mt-2">
             <FileUpload
               files={files}
               multiple
@@ -286,39 +290,39 @@ export function HomePage() {
         </div>
 
         {/* Quick settings row */}
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          <div className="rounded-xl border border-border/40 bg-card/80 p-3 shadow-sm backdrop-blur-sm">
-            <Label className="text-xs font-medium">写作风格</Label>
-            <div className="mt-1.5">
+        <div className="mt-4 grid grid-cols-2 gap-4">
+          <div className="rounded-2xl border border-border/50 bg-card/90 p-3.5 shadow-sm backdrop-blur-sm transition-shadow hover:shadow-md">
+            <Label className="text-[0.7rem] font-semibold tracking-wide uppercase text-muted-foreground/80">写作风格</Label>
+            <div className="mt-2">
               <StyleSelector value={styleId} onChange={setStyleId} />
             </div>
           </div>
-          <div className="rounded-xl border border-border/40 bg-card/80 p-3 shadow-sm backdrop-blur-sm">
-            <Label className="text-xs font-medium">选择模型</Label>
-            <div className="mt-1.5">
+          <div className="rounded-2xl border border-border/50 bg-card/90 p-3.5 shadow-sm backdrop-blur-sm transition-shadow hover:shadow-md">
+            <Label className="text-[0.7rem] font-semibold tracking-wide uppercase text-muted-foreground/80">选择模型</Label>
+            <div className="mt-2">
               <ModelSelector value={selectedModelId} onChange={setSelectedModelId} />
             </div>
           </div>
         </div>
 
         {/* Advanced settings collapsible */}
-        <div className="mt-3 rounded-xl border border-border/40 bg-card/80 shadow-sm backdrop-blur-sm overflow-hidden">
+        <div className="mt-4 rounded-2xl border border-border/50 bg-card/90 shadow-sm backdrop-blur-sm overflow-hidden transition-shadow hover:shadow-md">
           <button
             type="button"
             onClick={() => setShowAdvanced((v) => !v)}
-            className="flex w-full items-center justify-between px-4 py-2.5 text-xs font-medium text-muted-foreground hover:bg-muted/40 transition-colors"
+            className="flex w-full items-center justify-between px-4 py-3 text-xs font-semibold text-muted-foreground hover:bg-muted/50 transition-all duration-200"
           >
             <span className="flex items-center gap-1.5">
               <Settings2 className="h-3.5 w-3.5" />
               更多设置
             </span>
-            <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', showAdvanced && 'rotate-180')} />
+            <ChevronDown className={cn('h-3.5 w-3.5 transition-transform duration-200', showAdvanced && 'rotate-180')} />
           </button>
           {showAdvanced && (
-            <div className="border-t border-border/40 px-4 py-3 space-y-3">
+            <div className="border-t border-border/50 px-4 py-3.5 space-y-3.5">
               <div>
-                <Label className="text-xs font-medium">选择模板</Label>
-                <div className="mt-1.5">
+                <Label className="text-[0.7rem] font-semibold tracking-wide uppercase text-muted-foreground/80">选择模板</Label>
+                <div className="mt-2">
                   <TemplateSelector value={selectedTemplateId} onChange={setSelectedTemplateId} />
                 </div>
               </div>
@@ -330,14 +334,14 @@ export function HomePage() {
         </div>
 
         {/* Supplement + Generate */}
-        <div className="mt-3 rounded-xl border border-border/40 bg-card/80 p-4 shadow-sm backdrop-blur-sm">
-          <Label className="text-xs font-medium">补充要求</Label>
+        <div className="mt-4 rounded-2xl border border-border/50 bg-card/90 p-5 shadow-sm backdrop-blur-sm transition-shadow hover:shadow-md">
+          <Label className="text-[0.7rem] font-semibold tracking-wide uppercase text-muted-foreground/80">补充要求</Label>
           <Textarea
             placeholder="输入对功能描述的要求（可选）"
             value={userInput}
             onChange={(e) => setUserInput(e.target.value)}
             rows={2}
-            className="resize-none mt-1.5"
+            className="resize-none mt-2 bg-muted/30 border-border/50 focus:border-primary/30"
           />
           <div className="mt-3">
             <GenerateButton

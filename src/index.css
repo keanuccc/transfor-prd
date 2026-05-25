@@ -1,36 +1,36 @@
+﻿@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:ital,wght@0,400;0,500;1,400&display=swap");
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;550;600;650;700&display=swap');
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  /* Warm-stone monochrome — refined, timeless, no color */
-  --color-background: hsl(36 10% 98%);
-  --color-foreground: hsl(30 10% 5%);
-  --color-card: hsl(36 10% 100%);
-  --color-card-foreground: hsl(30 10% 5%);
-  --color-popover: hsl(36 10% 100%);
-  --color-popover-foreground: hsl(30 10% 5%);
-  --color-primary: hsl(30 10% 8%);
-  --color-primary-foreground: hsl(36 10% 99%);
-  --color-secondary: hsl(36 8% 95%);
-  --color-secondary-foreground: hsl(30 10% 8%);
-  --color-muted: hsl(36 8% 95%);
-  --color-muted-foreground: hsl(30 5% 44%);
-  --color-accent: hsl(36 8% 93%);
-  --color-accent-foreground: hsl(30 10% 8%);
-  --color-destructive: hsl(0 60% 48%);
+  /* ---- Editorial Library: Warm Ink & Paper ---- */
+  --color-background: hsl(38 32% 97%);
+  --color-foreground: hsl(28 18% 8%);
+  --color-card: hsl(36 28% 99%);
+  --color-card-foreground: hsl(28 18% 8%);
+  --color-popover: hsl(36 28% 99%);
+  --color-popover-foreground: hsl(28 18% 8%);
+  --color-primary: hsl(32 48% 38%);
+  --color-primary-foreground: hsl(36 30% 98%);
+  --color-secondary: hsl(34 14% 93%);
+  --color-secondary-foreground: hsl(28 16% 12%);
+  --color-muted: hsl(34 12% 93%);
+  --color-muted-foreground: hsl(28 8% 42%);
+  --color-accent: hsl(32 38% 88%);
+  --color-accent-foreground: hsl(28 16% 12%);
+  --color-destructive: hsl(0 52% 42%);
   --color-destructive-foreground: hsl(0 0% 100%);
-  --color-border: hsl(36 6% 89%);
-  --color-input: hsl(36 6% 89%);
-  --color-ring: hsl(30 10% 8%);
+  --color-border: hsl(34 12% 86%);
+  --color-input: hsl(34 12% 86%);
+  --color-ring: hsl(32 45% 40%);
 
-  /* Shadows — soft and natural */
-  --shadow-xs: 0 1px 2px hsl(30 10% 5% / 0.03);
-  --shadow-sm: 0 1px 3px hsl(30 10% 5% / 0.05), 0 1px 2px hsl(30 10% 5% / 0.03);
-  --shadow-md: 0 4px 16px hsl(30 10% 5% / 0.06), 0 1px 4px hsl(30 10% 5% / 0.03);
-  --shadow-lg: 0 8px 32px hsl(30 10% 5% / 0.08), 0 2px 8px hsl(30 10% 5% / 0.03);
+  /* ---- Shadows: soft, book-like depth ---- */
+  --shadow-xs: 0 1px 2px hsl(30 12% 8% / 0.04);
+  --shadow-sm: 0 1px 4px hsl(30 12% 8% / 0.06), 0 1px 2px hsl(30 12% 8% / 0.04);
+  --shadow-md: 0 4px 20px hsl(30 12% 8% / 0.07), 0 1px 4px hsl(30 12% 8% / 0.04);
+  --shadow-lg: 0 8px 40px hsl(30 12% 8% / 0.09), 0 2px 8px hsl(30 12% 8% / 0.04);
 
   --radius-sm: 0.25rem;
   --radius-md: 0.5rem;
@@ -38,60 +38,100 @@
   --radius-xl: 1rem;
 }
 
+/* ---- Animations ---- */
 @keyframes indeterminate {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(400%); }
 }
 
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes subtle-pulse {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 0.7; }
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.65; }
 }
 
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes card-enter {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* ---- Base Layer ---- */
 @layer base {
   * {
     @apply border-border;
   }
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: "Lora", "Noto Serif SC", "Source Han Serif SC", "SimSun", "STSong", "Songti SC", Georgia, "Times New Roman", serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
   h1, h2, h3, h4, h5, h6 {
-    letter-spacing: -0.02em;
+    font-family: "Cormorant Garamond", "Noto Serif SC", "Source Han Serif SC", Georgia, "Times New Roman", serif;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    line-height: 1.2;
+  }
+  h1 { font-size: 2rem; }
+  h2 { font-size: 1.5rem; }
+  h3 { font-size: 1.25rem; }
+  h4 { font-size: 1.1rem; }
+  code, pre, kbd, samp {
+    font-family: "JetBrains Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
+  }
+  ::selection {
+    background-color: hsl(32 38% 88%);
+    color: hsl(28 18% 8%);
+  }
+  .dark ::selection {
+    background-color: hsl(32 25% 25%);
+    color: hsl(36 30% 92%);
   }
 }
 
+/* ---- Dark Theme: Night Reading ---- */
 .dark {
-  --color-background: hsl(30 8% 5%);
-  --color-foreground: hsl(36 12% 94%);
-  --color-card: hsl(30 8% 6.5%);
-  --color-card-foreground: hsl(36 12% 94%);
-  --color-popover: hsl(30 8% 6.5%);
-  --color-popover-foreground: hsl(36 12% 94%);
-  --color-primary: hsl(36 12% 93%);
-  --color-primary-foreground: hsl(30 8% 5%);
-  --color-secondary: hsl(30 6% 14%);
-  --color-secondary-foreground: hsl(36 12% 94%);
-  --color-muted: hsl(30 6% 12%);
-  --color-muted-foreground: hsl(30 5% 56%);
-  --color-accent: hsl(30 6% 14%);
-  --color-accent-foreground: hsl(36 12% 94%);
-  --color-destructive: hsl(0 55% 38%);
+  --color-background: hsl(30 14% 5%);
+  --color-foreground: hsl(36 22% 90%);
+  --color-card: hsl(30 12% 7%);
+  --color-card-foreground: hsl(36 22% 90%);
+  --color-popover: hsl(30 12% 7%);
+  --color-popover-foreground: hsl(36 22% 90%);
+  --color-primary: hsl(32 42% 52%);
+  --color-primary-foreground: hsl(30 12% 5%);
+  --color-secondary: hsl(30 10% 13%);
+  --color-secondary-foreground: hsl(36 22% 90%);
+  --color-muted: hsl(30 10% 11%);
+  --color-muted-foreground: hsl(32 8% 54%);
+  --color-accent: hsl(30 10% 13%);
+  --color-accent-foreground: hsl(36 22% 90%);
+  --color-destructive: hsl(0 45% 42%);
   --color-destructive-foreground: hsl(0 0% 100%);
-  --color-border: hsl(30 6% 15%);
-  --color-input: hsl(30 6% 15%);
-  --color-ring: hsl(30 6% 62%);
+  --color-border: hsl(30 10% 15%);
+  --color-input: hsl(30 10% 15%);
+  --color-ring: hsl(32 38% 55%);
 
-  --shadow-xs: 0 1px 2px hsl(30 12% 3% / 0.2);
-  --shadow-sm: 0 1px 3px hsl(30 12% 3% / 0.3), 0 1px 2px hsl(30 12% 3% / 0.2);
-  --shadow-md: 0 4px 16px hsl(30 12% 3% / 0.35), 0 1px 4px hsl(30 12% 3% / 0.2);
-  --shadow-lg: 0 8px 32px hsl(30 12% 3% / 0.45), 0 2px 8px hsl(30 12% 3% / 0.25);
+  --shadow-xs: 0 1px 2px hsl(32 14% 3% / 0.25);
+  --shadow-sm: 0 1px 3px hsl(32 14% 3% / 0.35), 0 1px 2px hsl(32 14% 3% / 0.25);
+  --shadow-md: 0 4px 20px hsl(32 14% 3% / 0.4), 0 1px 4px hsl(32 14% 3% / 0.25);
+  --shadow-lg: 0 8px 40px hsl(32 14% 3% / 0.5), 0 2px 8px hsl(32 14% 3% / 0.3);
 }

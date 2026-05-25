@@ -1,4 +1,4 @@
-import { STYLE_OPTIONS } from '@/lib/stylePrompts'
+﻿import { STYLE_OPTIONS } from '@/lib/stylePrompts'
 import { cn } from '@/lib/utils'
 
 interface StyleSelectorProps {
@@ -15,10 +15,10 @@ export function StyleSelector({ value, onChange }: StyleSelectorProps) {
           type="button"
           onClick={() => onChange(style.id)}
           className={cn(
-            'inline-flex cursor-pointer items-center rounded-full border px-2.5 py-1 text-xs font-medium transition-all active:scale-[0.97]',
+            'inline-flex cursor-pointer items-center rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-200 active:scale-[0.97]',
             value === style.id
-              ? 'border-primary/30 bg-primary text-primary-foreground shadow-xs'
-              : 'border-border/50 bg-muted/40 text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground',
+              ? 'border-primary/40 bg-primary text-primary-foreground shadow-sm'
+              : 'border-border/60 bg-muted/50 text-muted-foreground hover:border-primary/30 hover:bg-accent/60 hover:text-foreground',
           )}
           title={style.description}
         >
